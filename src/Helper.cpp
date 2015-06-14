@@ -75,7 +75,6 @@ void Helper::createImageSamples(const string &_inputFolder, const double _sample
 		string className = classFolder.substr(classFolder.find_last_of('/'));
 
 		vector<string> classContents;
-		//Helper::getContentsList(classFolder + className + "_test/", classContents, true);
 		Helper::getContentsList(classFolder + className + "_train/", classContents, true);
 		Helper::getContentsList(classFolder + className + "_val/", classContents, true);
 
@@ -105,6 +104,8 @@ void Helper::getClassNames(const string &_inputFolder, vector<string> &_classNam
 	Helper::getContentsList(_inputFolder, _classNames);
 	for (size_t i = 0; i < _classNames.size(); i++)
 		_classNames[i] = _classNames[i].substr(_classNames[i].find_last_of('/') + 1);
+
+	std::sort(_classNames.begin(), _classNames.end());
 }
 
 void Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors)
@@ -148,14 +149,16 @@ size_t Helper::calculateHash(const vector<string> &_imageLocationList, const int
 	return strHash(names);
 }
 
-void Helper::concatMats(vector<Mat> &_vec, Mat &_res){
+void Helper::concatMats(vector<Mat> &_vec, Mat &_res)
+{
 	int s = _vec.size();
 	Mat aux;
 	vconcat(_vec[0], _vec[1], aux);
 
-	for(int i = 2; i < s - 1; i++) {
+	for (int i = 2; i < s - 1; i++)
+	{
 		vconcat(aux, _vec[i], aux);
 	}
 
-	vconcat(aux, _vec[s-1], _res);
+	vconcat(aux, _vec[s - 1], _res);
 }

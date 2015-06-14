@@ -22,8 +22,9 @@ public:
 	// Loads the configuration file
 	static void load(const string &_filename);
 
+	static string getCacheLocation();
 	static bool createImageSample();
-	static int getCodebookClustersNumber();
+	static int getCodebookSize();
 	static double getSampleSize();
 
 private:
@@ -32,8 +33,9 @@ private:
 	// Parses the given value according to the given key
 	static void parse(const string _key, const string _value);
 
-	bool sampleImageSet;
-	int codebookClusters;
+	string cacheLocation;
+	bool createSample;
+	int codebookSize;
 	double sampleSize;
 };
 

@@ -58,11 +58,14 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 int main(int _nargs, char ** _vargs)
 {
 	if (_nargs < 2)
+	{
 		cout << "Not enough arguments\n";
+		return EXIT_FAILURE;
+	}
 
 	string inputFolder = _vargs[1];
 	cout << "Input folder: " << inputFolder << endl;
-	Config::load("../config/config");
+	Config::load("./config/config");
 
 	// Create a new image sample
 	if (Config::createImageSample())
@@ -77,13 +80,13 @@ int main(int _nargs, char ** _vargs)
 	Helper::getClassNames(inputFolder, classNames);
 	for (string className : classNames)
 	{
-		if (!Codebook::loadCodebook(inputFolder + className + "/sample/", codebooks))
+		if (!Codebook::loadCodebook(inputFolder + className + "/sample/", Config::getCacheLocation(), codebooks))
 		{
 			cout << "Codebook for class '" << className << "' not found in cache. Calculating new codebook\n";
-			codebooks.push_back(Codebook(Config::getCodebookClustersNumber()));
+			codebooks.push_back(Codebook(Config::getCodebookSize()));
 			codebooks.back().calculateCodebook(inputFolder + className + "/sample/", 10000, 0.1);
 			cout << "Saving codebook for class '" << className << "' to cache file\n";
-			codebooks.back().saveToFile("../cache/");
+			codebooks.back().saveToFile(Config::getCacheLocation());
 		}
 		else
 			cout << "Codebook for class '" << className << "' read from cache\n";
@@ -99,10 +102,12 @@ int main(int _nargs, char ** _vargs)
 	int t = 0;
 	int nClasses = trainBoWs.size();
 	vector<int> trainLabels;
-	for(int i = 0; i < nClasses ; i++){
+	for (int i = 0; i < nClasses; i++)
+	{
 		Mat currClass = trainBoWs[i];
 		int rows = currClass.rows;
-		for(int j = 0; j < rows; j++){
+		for (int j = 0; j < rows; j++)
+		{
 			trainLabels.push_back(i);
 			t++;
 		}
@@ -140,116 +145,115 @@ int main(int _nargs, char ** _vargs)
 //	class1 = 0;
 //	class2 = 0;
 
-
 	// UNCOMMENT THIS FOR VALIDATION RUNS
 	// TEST RUNS CODE BELOW
 
 	/*ofstream myfile;
-	string outputfilename = "../validation/Cparam-" + to_string(params.C);
+	 string outputfilename = "../validation/Cparam-" + to_string(params.C);
 
-	if(!Helper::fileExists(outputfilename.c_str())) {
-		myfile.open(outputfilename, ios::out | ios::app);
-		myfile << "# " << validationSet.rows << " images in validation set" << endl;
-		myfile << "# VALIDATION SET:" << endl;
-		myfile << "# Class 0: " << validationBoWs[0].rows << " | Class 1: " << validationBoWs[1].rows << " | Class 2: " << validationBoWs[2].rows << endl;
-		myfile << "# SampleSize \t NClusters \t Class0 \t Class1 \t Class2" << endl;
-		myfile << "# CLASSIFICATION RESULTS: (first row is actual set)" << endl;
-		myfile << "0" << "\t" << "0" << "\t" << validationBoWs[0].rows << "\t" << validationBoWs[1].rows << "\t" << validationBoWs[2].rows << endl;
-		myfile.close();
-	}
+	 if(!Helper::fileExists(outputfilename.c_str())) {
+	 myfile.open(outputfilename, ios::out | ios::app);
+	 myfile << "# " << validationSet.rows << " images in validation set" << endl;
+	 myfile << "# VALIDATION SET:" << endl;
+	 myfile << "# Class 0: " << validationBoWs[0].rows << " | Class 1: " << validationBoWs[1].rows << " | Class 2: " << validationBoWs[2].rows << endl;
+	 myfile << "# SampleSize \t NClusters \t Class0 \t Class1 \t Class2" << endl;
+	 myfile << "# CLASSIFICATION RESULTS: (first row is actual set)" << endl;
+	 myfile << "0" << "\t" << "0" << "\t" << validationBoWs[0].rows << "\t" << validationBoWs[1].rows << "\t" << validationBoWs[2].rows << endl;
+	 myfile.close();
+	 }
 
-	//Preparing labels for validation Set... there must be a better way to do this but I'm having problems with arrays
-	t = 0;
-	nClasses = validationBoWs.size();
-	vector<int> validationLabels;
-	for(int i = 0; i < nClasses ; i++){
-		Mat currClass = validationBoWs[i];
-		int rows = currClass.rows;
-		for(int j = 0; j < rows; j++){
-			validationLabels.push_back(i);
-			t++;
-		}
-	}
+	 //Preparing labels for validation Set... there must be a better way to do this but I'm having problems with arrays
+	 t = 0;
+	 nClasses = validationBoWs.size();
+	 vector<int> validationLabels;
+	 for(int i = 0; i < nClasses ; i++){
+	 Mat currClass = validationBoWs[i];
+	 int rows = currClass.rows;
+	 for(int j = 0; j < rows; j++){
+	 validationLabels.push_back(i);
+	 t++;
+	 }
+	 }
 
-	cout << "Running classification for validation set" << endl;
-	//int confusion[4*3]; // TP,FP,TN,FP for each class
-	int tp0 = 0;
-	int fp0 = 0;
-	int tn0 = 0;
-	int fn0 = 0;
-	int tp1 = 0;
-	int fp1 = 0;
-	int tn1 = 0;
-	int fn1 = 0;
-	int tp2 = 0;
-	int fp2 = 0;
-	int tn2 = 0;
-	int fn2 = 0;
+	 cout << "Running classification for validation set" << endl;
+	 //int confusion[4*3]; // TP,FP,TN,FP for each class
+	 int tp0 = 0;
+	 int fp0 = 0;
+	 int tn0 = 0;
+	 int fn0 = 0;
+	 int tp1 = 0;
+	 int fp1 = 0;
+	 int tn1 = 0;
+	 int fn1 = 0;
+	 int tp2 = 0;
+	 int fp2 = 0;
+	 int tn2 = 0;
+	 int fn2 = 0;
 
-	for (int k = 0; k < validationSet.rows; k++)
-	{
-		float res = SVM.predict(validationSet.row(k));
-		int realClass = validationLabels[k];
-		if (res == 0)
-		{
-			class0++;
-			switch(realClass) {
-				case 0:
-					tp0++;
-					tn1++;
-					tn2++;
-				case 1:
-					fp0++;
-					fn1++;
-					tn2++;
-				case 2:
-					fp0++;
-					tn1++;
-					fn2++;
-			}
-		}
-		else if (res == 1)
-		{
-			class1++;
-			switch(realClass){
-				case 0:
-					fn0++;
-					fp1++;
-					tn2++;
-				case 1:
-					tn0++;
-					tp1++;
-					tn2++;
-				case 2:
-					tn0++;
-					fp1++;
-					fn2++;
-			}
-		}
-		else
-		{
-			class2++;
-			switch(realClass){
-				case 0:
-					fn0++;
-					tn1++;
-					fp2++;
-				case 1:
-					tn0++;
-					fn1++;
-					fp2++;
-				case 2:
-					tn0++;
-					tn1++;
-					tp2++;
-			}
-		}
+	 for (int k = 0; k < validationSet.rows; k++)
+	 {
+	 float res = SVM.predict(validationSet.row(k));
+	 int realClass = validationLabels[k];
+	 if (res == 0)
+	 {
+	 class0++;
+	 switch(realClass) {
+	 case 0:
+	 tp0++;
+	 tn1++;
+	 tn2++;
+	 case 1:
+	 fp0++;
+	 fn1++;
+	 tn2++;
+	 case 2:
+	 fp0++;
+	 tn1++;
+	 fn2++;
+	 }
+	 }
+	 else if (res == 1)
+	 {
+	 class1++;
+	 switch(realClass){
+	 case 0:
+	 fn0++;
+	 fp1++;
+	 tn2++;
+	 case 1:
+	 tn0++;
+	 tp1++;
+	 tn2++;
+	 case 2:
+	 tn0++;
+	 fp1++;
+	 fn2++;
+	 }
+	 }
+	 else
+	 {
+	 class2++;
+	 switch(realClass){
+	 case 0:
+	 fn0++;
+	 tn1++;
+	 fp2++;
+	 case 1:
+	 tn0++;
+	 fn1++;
+	 fp2++;
+	 case 2:
+	 tn0++;
+	 tn1++;
+	 tp2++;
+	 }
+	 }
 
-	}
+	 }
 
-	myfile.open(outputfilename, ios::out | ios::app);
-	myfile << to_string(Config::getSampleSize()) << "\t" << to_string(Config::getCodebookClustersNumber()) << "\t" << class0 << "\t" << class1 << "\t" << class2 << endl;
-	myfile.close();*/
+	 myfile.open(outputfilename, ios::out | ios::app);
+	 myfile << to_string(Config::getSampleSize()) << "\t" << to_string(Config::getCodebookClustersNumber()) << "\t" << class0 << "\t" << class1 << "\t" << class2 << endl;
+	 myfile.close();*/
 
 	// UNCOMMENT THIS FOR TEST RUNS
 //	ofstream myfile;
@@ -387,7 +391,6 @@ int main(int _nargs, char ** _vargs)
 //	confMat << "Pred Class 1\t" << class0mat[1] << "\t" << class1mat[1] << "\t" << class2mat[1] << endl;
 //	confMat << "Pred Class 2\t" << class0mat[2] << "\t" << class1mat[2] << "\t" << class2mat[2] << endl;
 //	confMat.close();
-
 	cout << "Finished\n";
 	return EXIT_SUCCESS;
 }

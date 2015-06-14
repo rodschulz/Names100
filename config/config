@@ -1,3 +1,4 @@
-sampleImageSet true
-sampleSize 0.05
-codebookClusters 10
+cacheLocation	../cache/
+createSample	false
+sampleSize	0.05
+codebookSize	10

@@ -108,6 +108,11 @@ int Codebook::getClusterNumber() const
 
 void Codebook::saveToFile(const string &_destinationFolder) const
 {
+	// Attempt to create folder in case if doesn't exists
+	string cmd = "mkdir -p " + _destinationFolder;
+	if (system(cmd.c_str()) != 0)
+		cout << "WARNING: wrong command while saving cache\n";
+
 	fstream cacheFile;
 	cacheFile.open(_destinationFolder + to_string(dataHash) + ".dat", fstream::out);
 	cacheFile << *this;
@@ -119,7 +124,7 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 //	static bool indexBuilt = false;
 //	if (!indexBuilt)
 //	{
-		index.build(centers, flann::KDTreeIndexParams(4));
+	index.build(centers, flann::KDTreeIndexParams(4));
 //		indexBuilt = true;
 //	}
 
@@ -145,15 +150,15 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 	}
 }
 
-bool Codebook::loadCodebook(const string &_imageSampleLocation, vector<Codebook> &_codebooks)
+bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheLocation, vector<Codebook> &_codebooks)
 {
 	// Calculate hash of data in sample
 	vector<string> imageLocationList;
-	Helper::getContentsList(_imageSampleLocation, imageLocationList);
+	Helper::getContentsList(_sampleLocation, imageLocationList);
 
 	// Hash of the files used for the codebook (just the names for now)
-	size_t sampleHash = Helper::calculateHash(imageLocationList, Config::getCodebookClustersNumber());
-	string filename = "./cache/" + to_string(sampleHash) + ".dat";
+	size_t sampleHash = Helper::calculateHash(imageLocationList, Config::getCodebookSize());
+	string filename = _cacheLocation + to_string(sampleHash) + ".dat";
 
 	bool codebookRead = false;
 	string line;

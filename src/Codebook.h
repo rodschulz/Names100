@@ -30,7 +30,7 @@ public:
 	void saveToFile(const string &_destinationFolder) const;
 	void getBoWTF(const Mat &_descriptor, Mat &_BoW);
 
-	static bool loadCodebook(const string &_imageSampleLocation, vector<Codebook> &_codebooks);
+	static bool loadCodebook(const string &_imageSampleLocation, const string &_cacheLocation, vector<Codebook> &_codebooks);
 
 private:
 	void buildIndex();

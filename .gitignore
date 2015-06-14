@@ -1,4 +1,6 @@
 build/*
 .settings/*
+scripts/.pydevproject
+scripts/.project
 .cproject
 .project

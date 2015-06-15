@@ -13,6 +13,26 @@
 using namespace std;
 using namespace cv;
 
+void getCodebooks(const string &_inputFolder, const vector<string> &_classNames, vector<Codebook> &_codebooks)
+{
+	double kmeansStop = Config::getKMeansThreshold();
+	int kmeansMaxIter = Config::getKMeansMaxIterations();
+
+	for (string className : _classNames)
+	{
+		if (!Codebook::loadCodebook(_inputFolder + className + "/sample/", Config::getCacheLocation(), _codebooks))
+		{
+			cout << "Codebook for class '" << className << "' not found in cache. Calculating new codebook\n";
+			_codebooks.push_back(Codebook(Config::getCodebookSize()));
+			_codebooks.back().calculateCodebook(_inputFolder + className + "/sample/", kmeansMaxIter, kmeansStop);
+			cout << "Saving codebook for class '" << className << "' to cache file\n";
+			_codebooks.back().saveToFile(Config::getCacheLocation());
+		}
+		else
+			cout << "Codebook for class '" << className << "' read from cache\n";
+	}
+}
+
 void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames, const string &_set, vector<Codebook> &_codebooks, vector<Mat> &_BoWs)
 {
 	for (size_t i = 0; i < _classNames.size(); i++)
@@ -32,7 +52,8 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 		for (string imageLocation : imageList)
 		{
 			Mat descriptors;
-			Helper::calculateImageDescriptors(imageLocation, descriptors);
+			vector<KeyPoint> keypoints;
+			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints);
 			Mat row = currentClassBoW.row(j++);
 			_codebooks[i].getBoWTF(descriptors, row);
 
@@ -65,32 +86,20 @@ int main(int _nargs, char ** _vargs)
 
 	string inputFolder = _vargs[1];
 	cout << "Input folder: " << inputFolder << endl;
+
 	Config::load("./config/config");
 
 	// Create a new image sample
 	if (Config::createImageSample())
-	{
-		cout << "Creating image sample\n";
 		Helper::createImageSamples(inputFolder, Config::getSampleSize());
-	}
 
-	// Generate or load the codebooks
-	vector<Codebook> codebooks;
+	// Get class names
 	vector<string> classNames;
 	Helper::getClassNames(inputFolder, classNames);
-	for (string className : classNames)
-	{
-		if (!Codebook::loadCodebook(inputFolder + className + "/sample/", Config::getCacheLocation(), codebooks))
-		{
-			cout << "Codebook for class '" << className << "' not found in cache. Calculating new codebook\n";
-			codebooks.push_back(Codebook(Config::getCodebookSize()));
-			codebooks.back().calculateCodebook(inputFolder + className + "/sample/", 10000, 0.1);
-			cout << "Saving codebook for class '" << className << "' to cache file\n";
-			codebooks.back().saveToFile(Config::getCacheLocation());
-		}
-		else
-			cout << "Codebook for class '" << className << "' read from cache\n";
-	}
+
+	// Generate/load the codebook for each class
+	vector<Codebook> codebooks;
+	getCodebooks(inputFolder, classNames, codebooks);
 
 	// Calculate the BoW for each image in each set
 	vector<Mat> trainBoWs, validationBoWs, testBoWs;
@@ -113,7 +122,7 @@ int main(int _nargs, char ** _vargs)
 		}
 	}
 
-	// Classification part
+// Classification part
 //	vector<Mat> dataToTrain;
 //	Svm::setUpTrainData(trainBoWs, dataToTrain, trainLabels.size());
 //
@@ -145,8 +154,8 @@ int main(int _nargs, char ** _vargs)
 //	class1 = 0;
 //	class2 = 0;
 
-	// UNCOMMENT THIS FOR VALIDATION RUNS
-	// TEST RUNS CODE BELOW
+// UNCOMMENT THIS FOR VALIDATION RUNS
+// TEST RUNS CODE BELOW
 
 	/*ofstream myfile;
 	 string outputfilename = "../validation/Cparam-" + to_string(params.C);
@@ -255,7 +264,7 @@ int main(int _nargs, char ** _vargs)
 	 myfile << to_string(Config::getSampleSize()) << "\t" << to_string(Config::getCodebookClustersNumber()) << "\t" << class0 << "\t" << class1 << "\t" << class2 << endl;
 	 myfile.close();*/
 
-	// UNCOMMENT THIS FOR TEST RUNS
+// UNCOMMENT THIS FOR TEST RUNS
 //	ofstream myfile;
 //	string outputfilename = "../results/Cparam" + to_string(params.C) + "-NClusters" + to_string(Config::getCodebookClustersNumber()) + "-SampleSize" + to_string(Config::getSampleSize()) + "-gamma" + to_string(params.gamma);
 //

@@ -57,6 +57,8 @@ void Helper::getContentsList(const string &_folder, vector<string> &_fileList, c
 
 void Helper::createImageSamples(const string &_inputFolder, const double _sampleSize, const long _seed)
 {
+	cout << "Creating image sample\n";
+
 	vector<string> folderList;
 	Helper::getContentsList(_inputFolder, folderList);
 
@@ -108,17 +110,16 @@ void Helper::getClassNames(const string &_inputFolder, vector<string> &_classNam
 	std::sort(_classNames.begin(), _classNames.end());
 }
 
-void Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors)
+void Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints)
 {
 	Mat image = imread(_imageLocation, CV_LOAD_IMAGE_GRAYSCALE);
 
 	initModule_nonfree();
-	Ptr<FeatureDetector> featureExtractor = FeatureDetector::create("HARRIS");
+	Ptr<FeatureDetector> featureExtractor = FeatureDetector::create("SIFT");
 	Ptr<DescriptorExtractor> descriptorExtractor = DescriptorExtractor::create("SIFT");
 
-	vector<KeyPoint> keypoints;
-	featureExtractor->detect(image, keypoints);
-	descriptorExtractor->compute(image, keypoints, _descriptors);
+	featureExtractor->detect(image, _keypoints);
+	descriptorExtractor->compute(image, _keypoints, _descriptors);
 }
 
 template<>

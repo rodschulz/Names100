@@ -22,10 +22,45 @@ public:
 	// Loads the configuration file
 	static void load(const string &_filename);
 
-	static string getCacheLocation();
-	static bool createImageSample();
-	static int getCodebookSize();
-	static double getSampleSize();
+	static string getCacheLocation()
+	{
+		return getInstance()->cacheLocation;
+	}
+
+	static bool createImageSample()
+	{
+		return getInstance()->createSample;
+	}
+	static double getSampleSize()
+	{
+		return getInstance()->sampleSize;
+	}
+
+	static int getCodebookSize()
+	{
+		return getInstance()->codebookSize;
+	}
+	static int getKMeansMaxIterations()
+	{
+		return getInstance()->kmeansMaxIter;
+	}
+	static double getKMeansThreshold()
+	{
+		return getInstance()->kmeansThres;
+	}
+
+	static bool useDenseSampling()
+	{
+		return getInstance()->useGrid;
+	}
+	static int getGridCellNumber()
+	{
+		return getInstance()->gridCells;
+	}
+	static bool calculateTFIDF()
+	{
+		return getInstance()->useTFIDF;
+	}
 
 private:
 	Config();
@@ -34,8 +69,16 @@ private:
 	static void parse(const string _key, const string _value);
 
 	string cacheLocation;
+
 	bool createSample;
-	int codebookSize;
 	double sampleSize;
+
+	int codebookSize;
+	int kmeansMaxIter;
+	double kmeansThres;
+
+	bool useGrid;
+	int gridCells;
+	bool useTFIDF;
 };
 

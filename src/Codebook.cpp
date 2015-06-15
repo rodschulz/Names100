@@ -84,8 +84,9 @@ void Codebook::calculateCodebook(const string &_dataLocation, const int _maxInte
 	for (string imageLocation : imageLocationList)
 	{
 		// Calculate image's descriptors
+		vector<KeyPoint> keypoints;
 		descriptors.push_back(Mat());
-		Helper::calculateImageDescriptors(imageLocation, descriptors.back());
+		Helper::calculateImageDescriptors(imageLocation, descriptors.back(), keypoints);
 
 		if (samples.rows == 0)
 			descriptors.back().copyTo(samples);

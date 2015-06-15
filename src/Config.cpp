@@ -12,9 +12,19 @@
 
 Config::Config()
 {
+	cacheLocation = "";
+
 	createSample = false;
-	codebookSize = 5;
 	sampleSize = 0.05;
+
+	codebookSize = 5;
+	kmeansMaxIter = 10000;
+	kmeansThres = 0.1;
+
+	useGrid = false;
+	gridCells = 1;
+	useTFIDF = false;
+
 }
 
 Config::~Config()
@@ -45,35 +55,34 @@ void Config::load(const string &_filename)
 
 void Config::parse(const string _key, const string _value)
 {
+	// cache read/write location
 	if (_key.compare("cacheLocation") == 0)
 		getInstance()->cacheLocation = _value;
 
+	// sample options
 	else if (_key.compare("createSample") == 0)
 		getInstance()->createSample = _value.compare("true") == 0;
 
 	else if (_key.compare("sampleSize") == 0)
 		getInstance()->sampleSize = atof(_value.c_str());
 
+	// codebook options
 	else if (_key.compare("codebookSize") == 0)
 		getInstance()->codebookSize = atoi(_value.c_str());
-}
 
-string Config::getCacheLocation()
-{
-	return getInstance()->cacheLocation;
-}
+	else if (_key.compare("kmeansMaxIter") == 0)
+		getInstance()->kmeansMaxIter = atoi(_value.c_str());
 
-bool Config::createImageSample()
-{
-	return getInstance()->createSample;
-}
+	else if (_key.compare("kmeansThres") == 0)
+		getInstance()->kmeansThres = atof(_value.c_str());
 
-int Config::getCodebookSize()
-{
-	return getInstance()->codebookSize;
-}
+	// BoF options
+	else if (_key.compare("useGrid") == 0)
+		getInstance()->useGrid = _value.compare("true") == 0;
 
-double Config::getSampleSize()
-{
-	return getInstance()->sampleSize;
+	else if (_key.compare("gridCells") == 0)
+		getInstance()->gridCells = atoi(_value.c_str());
+
+	else if (_key.compare("useTFIDF") == 0)
+		getInstance()->useTFIDF = _value.compare("true") == 0;
 }

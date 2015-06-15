@@ -1,4 +1,16 @@
+# Cache storage options
 cacheLocation	../cache/
+
+# Sample creation options
 createSample	false
 sampleSize	0.05
+
+# Codebook calculation options
 codebookSize	10
+kmeansMaxIter	10000
+kmeansThres	0.01
+
+# BoW calculation options
+useGrid		true
+gridCells	5
+useTFIDF	true

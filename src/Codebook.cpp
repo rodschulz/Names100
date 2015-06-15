@@ -17,7 +17,7 @@ Codebook::Codebook(const int _clusterNumber, const bool _useDenseSampling, const
 	clusterNumber = _clusterNumber;
 	denseSampling = _useDenseSampling;
 	gridSize = _gridSize;
-	dataHash = 0;
+	dataHash = "";
 }
 
 Codebook::Codebook(const Codebook &_other)
@@ -36,7 +36,7 @@ Codebook::Codebook()
 	clusterNumber = 1;
 	denseSampling = false;
 	gridSize = 1;
-	dataHash = 0;
+	dataHash = "";
 }
 
 Codebook::~Codebook()
@@ -119,7 +119,7 @@ void Codebook::saveToFile(const string &_destinationFolder) const
 		cout << "WARNING: wrong command while saving cache\n";
 
 	fstream cacheFile;
-	cacheFile.open(_destinationFolder + to_string(dataHash) + ".dat", fstream::out);
+	cacheFile.open(_destinationFolder + dataHash + ".dat", fstream::out);
 	cacheFile << *this;
 	cacheFile.close();
 }
@@ -157,8 +157,8 @@ bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheL
 	Helper::getContentsList(_sampleLocation, imageLocationList);
 
 	// Hash of the files used for the codebook (just the names for now)
-	size_t sampleHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
-	string filename = _cacheLocation + to_string(sampleHash) + ".dat";
+	string sampleHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
+	string filename = _cacheLocation + sampleHash + ".dat";
 
 	bool codebookRead = false;
 	string line;

@@ -159,7 +159,7 @@ void Helper::printMatrix<int>(const Mat &_matrix, const int _precision, const st
 	}
 }
 
-size_t Helper::calculateHash(const vector<string> &_imageLocationList, const string &_extra)
+string Helper::calculateHash(const vector<string> &_imageLocationList, const string &_extra)
 {
 	string names = "";
 	for (string location : _imageLocationList)
@@ -168,7 +168,7 @@ size_t Helper::calculateHash(const vector<string> &_imageLocationList, const str
 	names += ("-" + _extra);
 
 	hash<string> strHash;
-	return strHash(names);
+	return toHexString(strHash(names));
 }
 
 void Helper::concatMats(vector<Mat> &_vec, Mat &_res)

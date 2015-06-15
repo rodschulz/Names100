@@ -7,6 +7,8 @@
 #include <string>
 #include <functional>
 #include <sstream>
+#include <iomanip>
+#include "Helper.h"
 
 using namespace std;
 
@@ -71,7 +73,7 @@ public:
 		str += "-gridSize=" + to_string(getInstance()->denseSampling ? getInstance()->gridSize : 0);
 
 		hash<string> strHash;
-		return to_string(strHash(str));
+		return Helper::toHexString(strHash(str));
 	}
 
 private:

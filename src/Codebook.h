@@ -52,7 +52,7 @@ private:
 	bool denseSampling;
 	int gridSize;
 
-	size_t dataHash;
+	string dataHash;
 	flann::Index index;
 };
 

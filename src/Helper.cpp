@@ -89,9 +89,12 @@ void Helper::createImageSamples(const string &_inputFolder, const double _sample
 
 		string sampleFolder = classFolder + "/sample/";
 		cmd = "rm -rf " + sampleFolder;
-		system(cmd.c_str());
+		if (system(cmd.c_str()) != 0)
+			cout << "WARNING: wrong command in " << __FUNCTION__ << endl;
+
 		cmd = "mkdir " + sampleFolder;
-		system(cmd.c_str());
+		if (system(cmd.c_str()))
+			cout << "WARNING: wrong command " << __FUNCTION__ << endl;
 
 		vector<string> classSample;
 		int sampleSize = classContents.size() * _sampleSize;
@@ -100,8 +103,11 @@ void Helper::createImageSamples(const string &_inputFolder, const double _sample
 			int sampleIndex = (rand() % (int) classContents.size());
 			string origin = *(classContents.begin() + sampleIndex);
 			string destination = sampleFolder + origin.substr(origin.find_last_of('/') + 1);
+
 			cmd = "cp " + origin + " " + destination;
-			system(cmd.c_str());
+			if (system(cmd.c_str()))
+				cout << "WARNING: wrong command " << __FUNCTION__ << endl;
+
 			classContents.erase(classContents.begin() + sampleIndex);
 		}
 	}

@@ -23,7 +23,7 @@ void getCodebooks(const string &_inputFolder, const vector<string> &_classNames,
 		if (!Codebook::loadCodebook(_inputFolder + className + "/sample/", Config::getCacheLocation(), _codebooks))
 		{
 			cout << "Codebook for class '" << className << "' not found in cache. Calculating new codebook\n";
-			_codebooks.push_back(Codebook(Config::getCodebookSize()));
+			_codebooks.push_back(Codebook(Config::getCodebookSize(), Config::useDenseSampling(), Config::getGridSize()));
 			_codebooks.back().calculateCodebook(_inputFolder + className + "/sample/", kmeansMaxIter, kmeansStop);
 			cout << "Saving codebook for class '" << className << "' to cache file\n";
 			_codebooks.back().saveToFile(Config::getCacheLocation());
@@ -48,12 +48,12 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 		int j = 0;
 		Mat documentCounter = Mat::zeros(1, _codebooks[i].getClusterNumber(), CV_32FC1);
 
-		cout << "Calculating frequencies\n";
+		cout << "\tCalculating frequencies\n";
 		for (string imageLocation : imageList)
 		{
 			Mat descriptors;
 			vector<KeyPoint> keypoints;
-			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints);
+			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints, _codebooks[i].usingDenseSampling(), _codebooks[i].getGridSize());
 			Mat row = currentClassBoW.row(j++);
 			_codebooks[i].getBoWTF(descriptors, row);
 
@@ -61,18 +61,20 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 				documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);
 		}
 
-		cout << "Calculating tf-idf\n";
-		// Calculate tf-idf logarithmic factor and then the tf-idf itself
-		for (int k = 0; k < documentCounter.cols; k++)
-			documentCounter.at<float>(0, k) = log((float) imageList.size() / documentCounter.at<float>(0, k));
-		for (int p = 0; p < currentClassBoW.rows; p++)
+		if (Config::calculateTFIDF())
 		{
-			for (int q = 0; q < currentClassBoW.cols; q++)
-				currentClassBoW.at<float>(p, q) *= documentCounter.at<float>(0, q);
-		}
+			cout << "\tCalculating tf-idf\n";
 
-		//Helper::printMatrix<float>(documentCounter, 3);
-		//Helper::printMatrix<float>(currentClassBoW, 3);
+			// Calculate tf-idf logarithmic factor and then the tf-idf itself
+			for (int k = 0; k < documentCounter.cols; k++)
+				documentCounter.at<float>(0, k) = log((float) imageList.size() / documentCounter.at<float>(0, k));
+
+			for (int p = 0; p < currentClassBoW.rows; p++)
+			{
+				for (int q = 0; q < currentClassBoW.cols; q++)
+					currentClassBoW.at<float>(p, q) *= documentCounter.at<float>(0, q);
+			}
+		}
 	}
 }
 

@@ -34,8 +34,8 @@ public:
 	static void getContentsList(const string &_folder, vector<string> &_fileList, const bool _appendToList = false);
 	static void createImageSamples(const string &_inputFolder, const double _sampleSize, const long _seed = -1);
 	static void getClassNames(const string &_inputFolder, vector<string> &_classNames);
-	static void calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints);
-	static size_t calculateHash(const vector<string> &_imageLocationList, const int _clusterNumber);
+	static bool calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, const bool _denseSaming = false, const int _gridSize = 2);
+	static size_t calculateHash(const vector<string> &_imageLocationList, const string &_extra);
 	static void concatMats(vector<Mat> &_vec, Mat &_res);
 
 private:

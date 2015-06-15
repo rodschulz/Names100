@@ -3,7 +3,7 @@ cacheLocation	../cache/
 
 # Sample creation options
 createSample	false
-sampleSize	0.05
+sampleSize	0.2
 
 # Codebook calculation options
 codebookSize	10
@@ -11,6 +11,6 @@ kmeansMaxIter	10000
 kmeansThres	0.01
 
 # BoW calculation options
-useGrid		true
-gridCells	5
+denseSampling	true
+gridSize	5
 useTFIDF	true

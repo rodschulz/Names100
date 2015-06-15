@@ -11,10 +11,12 @@
 #include <iterator>
 #include <iostream>
 
-Codebook::Codebook(const int _clusterNumber)
+Codebook::Codebook(const int _clusterNumber, const bool _useDenseSampling, const int _gridSize)
 {
 	centers = Mat::zeros(1, 1, CV_32FC1);
 	clusterNumber = _clusterNumber;
+	denseSampling = _useDenseSampling;
+	gridSize = _gridSize;
 	dataHash = 0;
 }
 
@@ -22,6 +24,8 @@ Codebook::Codebook(const Codebook &_other)
 {
 	centers = _other.centers.clone();
 	clusterNumber = _other.clusterNumber;
+	denseSampling = _other.denseSampling;
+	gridSize = _other.gridSize;
 	dataHash = _other.dataHash;
 	index = _other.index;
 }
@@ -30,6 +34,8 @@ Codebook::Codebook()
 {
 	centers = Mat::zeros(1, 1, CV_32FC1);
 	clusterNumber = 1;
+	denseSampling = false;
+	gridSize = 1;
 	dataHash = 0;
 }
 
@@ -43,6 +49,8 @@ Codebook &Codebook::operator=(const Codebook &_other)
 	{
 		centers = _other.centers.clone();
 		clusterNumber = _other.clusterNumber;
+		denseSampling = _other.denseSampling;
+		gridSize = _other.gridSize;
 		dataHash = _other.dataHash;
 		index = _other.index;
 	}
@@ -56,7 +64,7 @@ ostream &operator<<(ostream &_stream, const Codebook &_codebook)
 	int cols = _codebook.centers.cols;
 	int dataType = _codebook.centers.type();
 
-	_stream << _codebook.dataHash << " " << rows << " " << cols << "\n";
+	_stream << boolalpha << _codebook.dataHash << " " << rows << " " << cols << " " << _codebook.denseSampling << " " << _codebook.gridSize << "\n";
 	for (int i = 0; i < rows; i++)
 	{
 		for (int j = 0; j < cols; j++)
@@ -86,7 +94,8 @@ void Codebook::calculateCodebook(const string &_dataLocation, const int _maxInte
 		// Calculate image's descriptors
 		vector<KeyPoint> keypoints;
 		descriptors.push_back(Mat());
-		Helper::calculateImageDescriptors(imageLocation, descriptors.back(), keypoints);
+		if (!Helper::calculateImageDescriptors(imageLocation, descriptors.back(), keypoints, denseSampling, gridSize))
+			continue;
 
 		if (samples.rows == 0)
 			descriptors.back().copyTo(samples);
@@ -99,12 +108,7 @@ void Codebook::calculateCodebook(const string &_dataLocation, const int _maxInte
 	kmeans(samples, clusterNumber, labels, TermCriteria(CV_TERMCRIT_ITER | CV_TERMCRIT_EPS, _maxInterationNumber, _stopThreshold), attempts, KMEANS_PP_CENTERS, centers);
 
 	// Hash of the files used for the codebook (just the names for now)
-	dataHash = Helper::calculateHash(imageLocationList, clusterNumber);
-}
-
-int Codebook::getClusterNumber() const
-{
-	return clusterNumber;
+	dataHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
 }
 
 void Codebook::saveToFile(const string &_destinationFolder) const
@@ -122,12 +126,7 @@ void Codebook::saveToFile(const string &_destinationFolder) const
 
 void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 {
-//	static bool indexBuilt = false;
-//	if (!indexBuilt)
-//	{
 	index.build(centers, flann::KDTreeIndexParams(4));
-//		indexBuilt = true;
-//	}
 
 	if (_BoW.cols != centers.rows)
 	{
@@ -158,7 +157,7 @@ bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheL
 	Helper::getContentsList(_sampleLocation, imageLocationList);
 
 	// Hash of the files used for the codebook (just the names for now)
-	size_t sampleHash = Helper::calculateHash(imageLocationList, Config::getCodebookSize());
+	size_t sampleHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
 	string filename = _cacheLocation + to_string(sampleHash) + ".dat";
 
 	bool codebookRead = false;
@@ -178,12 +177,15 @@ bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheL
 
 			if (rows == -1)
 			{
-				if (tokens.size() != 3)
+				if (tokens.size() != 5)
 					break;
 
 				rows = stoi(tokens[1]);
 				cols = stoi(tokens[2]);
-				_codebooks.push_back(Codebook(rows));
+				bool useDenseSampling = tokens[3].compare("true") == 0;
+				int samplingGridSize = stoi(tokens[4]);
+
+				_codebooks.push_back(Codebook(rows, useDenseSampling, samplingGridSize));
 				_codebooks.back().dataHash = sampleHash;
 				_codebooks.back().centers = Mat::zeros(rows, cols, CV_32FC1);
 			}

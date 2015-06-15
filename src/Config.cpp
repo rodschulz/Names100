@@ -21,8 +21,8 @@ Config::Config()
 	kmeansMaxIter = 10000;
 	kmeansThres = 0.1;
 
-	useGrid = false;
-	gridCells = 1;
+	denseSampling = false;
+	gridSize = 0;
 	useTFIDF = false;
 
 }
@@ -40,6 +40,9 @@ void Config::load(const string &_filename)
 	{
 		while (getline(inputFile, line))
 		{
+			if (line.empty() || line[0] == '#')
+				continue;
+
 			// Parse string line
 			vector<string> tokens;
 			istringstream iss(line);
@@ -77,11 +80,11 @@ void Config::parse(const string _key, const string _value)
 		getInstance()->kmeansThres = atof(_value.c_str());
 
 	// BoF options
-	else if (_key.compare("useGrid") == 0)
-		getInstance()->useGrid = _value.compare("true") == 0;
+	else if (_key.compare("denseSampling") == 0)
+		getInstance()->denseSampling = _value.compare("true") == 0;
 
-	else if (_key.compare("gridCells") == 0)
-		getInstance()->gridCells = atoi(_value.c_str());
+	else if (_key.compare("gridSize") == 0)
+		getInstance()->gridSize = atoi(_value.c_str());
 
 	else if (_key.compare("useTFIDF") == 0)
 		getInstance()->useTFIDF = _value.compare("true") == 0;

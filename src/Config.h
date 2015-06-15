@@ -5,6 +5,8 @@
 #pragma once
 
 #include <string>
+#include <functional>
+#include <sstream>
 
 using namespace std;
 
@@ -51,15 +53,25 @@ public:
 
 	static bool useDenseSampling()
 	{
-		return getInstance()->useGrid;
+		return getInstance()->denseSampling;
 	}
-	static int getGridCellNumber()
+	static int getGridSize()
 	{
-		return getInstance()->gridCells;
+		return getInstance()->gridSize;
 	}
 	static bool calculateTFIDF()
 	{
 		return getInstance()->useTFIDF;
+	}
+	static string getConfigHash()
+	{
+		string str = "";
+		str += "codebookSize=" + to_string(getInstance()->codebookSize);
+		str += "-denseSampling=" + to_string(getInstance()->denseSampling);
+		str += "-gridSize=" + to_string(getInstance()->denseSampling ? getInstance()->gridSize : 0);
+
+		hash<string> strHash;
+		return to_string(strHash(str));
 	}
 
 private:
@@ -77,8 +89,8 @@ private:
 	int kmeansMaxIter;
 	double kmeansThres;
 
-	bool useGrid;
-	int gridCells;
+	bool denseSampling;
+	int gridSize;
 	bool useTFIDF;
 };
 

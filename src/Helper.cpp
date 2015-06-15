@@ -30,13 +30,13 @@ int Helper::getRandomNumber(const int _min, const int _max)
 	return number;
 }
 
-void Helper::getContentsList(const string &_folder, vector<string> &_fileList, const bool _appendToList)
+void Helper::getContentsList(const string &_folder, vector<string> &_contents, const bool _appendToList)
 {
 	DIR *folder;
 	struct dirent *epdf;
 
 	if (!_appendToList)
-		_fileList.clear();
+		_contents.clear();
 
 	if ((folder = opendir(_folder.c_str())) != NULL)
 	{
@@ -45,7 +45,7 @@ void Helper::getContentsList(const string &_folder, vector<string> &_fileList, c
 			if (strcmp(epdf->d_name, ".") == 0 || strcmp(epdf->d_name, "..") == 0)
 				continue;
 
-			_fileList.push_back(_folder + epdf->d_name);
+			_contents.push_back(_folder + epdf->d_name);
 		}
 		closedir(folder);
 	}
@@ -53,6 +53,8 @@ void Helper::getContentsList(const string &_folder, vector<string> &_fileList, c
 	{
 		cout << "ERROR: can't open folder " << _folder << "\n";
 	}
+
+	std::sort(_contents.begin(), _contents.end());
 }
 
 void Helper::createImageSamples(const string &_inputFolder, const double _sampleSize, const long _seed)
@@ -71,9 +73,14 @@ void Helper::createImageSamples(const string &_inputFolder, const double _sample
 		srand(rand());
 	}
 
+	double percent = (double) folderList.size() / 100.0;
+	double total = 0.0;
+
 	string cmd;
 	for (string classFolder : folderList)
 	{
+		cout << "\t" << (total += percent) << "% done" << endl;
+
 		string className = classFolder.substr(classFolder.find_last_of('/'));
 
 		vector<string> classContents;
@@ -106,20 +113,34 @@ void Helper::getClassNames(const string &_inputFolder, vector<string> &_classNam
 	Helper::getContentsList(_inputFolder, _classNames);
 	for (size_t i = 0; i < _classNames.size(); i++)
 		_classNames[i] = _classNames[i].substr(_classNames[i].find_last_of('/') + 1);
-
-	std::sort(_classNames.begin(), _classNames.end());
 }
 
-void Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints)
+bool Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, const bool _denseSaming, const int _gridSize)
 {
+	bool statusOk = true;
 	Mat image = imread(_imageLocation, CV_LOAD_IMAGE_GRAYSCALE);
 
-	initModule_nonfree();
-	Ptr<FeatureDetector> featureExtractor = FeatureDetector::create("SIFT");
+	Ptr<FeatureDetector> featureExtractor;
 	Ptr<DescriptorExtractor> descriptorExtractor = DescriptorExtractor::create("SIFT");
 
-	featureExtractor->detect(image, _keypoints);
-	descriptorExtractor->compute(image, _keypoints, _descriptors);
+	if (_denseSaming)
+	{
+		DenseFeatureDetector detector(1, 1, 0.1, _gridSize);
+		detector.detect(image, _keypoints);
+		descriptorExtractor->compute(image, _keypoints, _descriptors);
+	}
+	else
+	{
+		initModule_nonfree();
+		featureExtractor = FeatureDetector::create("HARRIS");
+		featureExtractor->detect(image, _keypoints);
+		descriptorExtractor->compute(image, _keypoints, _descriptors);
+	}
+
+	if (_keypoints.empty() || _descriptors.empty())
+		statusOk = false;
+
+	return statusOk;
 }
 
 template<>
@@ -138,13 +159,13 @@ void Helper::printMatrix<int>(const Mat &_matrix, const int _precision, const st
 	}
 }
 
-size_t Helper::calculateHash(const vector<string> &_imageLocationList, const int _clusterNumber)
+size_t Helper::calculateHash(const vector<string> &_imageLocationList, const string &_extra)
 {
 	string names = "";
 	for (string location : _imageLocationList)
 		names += location.substr(location.find_last_of('/') + 1);
 
-	names += ("-" + to_string(_clusterNumber));
+	names += ("-" + _extra);
 
 	hash<string> strHash;
 	return strHash(names);

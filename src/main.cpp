@@ -22,10 +22,10 @@ void getCodebooks(const string &_inputFolder, const vector<string> &_classNames,
 	{
 		if (!Codebook::loadCodebook(_inputFolder + className + "/sample/", Config::getCacheLocation(), _codebooks))
 		{
-			cout << "Codebook for class '" << className << "' not found in cache. Calculating new codebook\n";
+			cout << "Codebook for class '" << className << "' not found in cache.\n\tCalculating new codebook\n";
 			_codebooks.push_back(Codebook(Config::getCodebookSize(), Config::useDenseSampling(), Config::getGridSize()));
 			_codebooks.back().calculateCodebook(_inputFolder + className + "/sample/", kmeansMaxIter, kmeansStop);
-			cout << "Saving codebook for class '" << className << "' to cache file\n";
+			cout << "\tSaving codebook for class '" << className << "' to cache file\n";
 			_codebooks.back().saveToFile(Config::getCacheLocation());
 		}
 		else

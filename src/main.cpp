@@ -56,6 +56,7 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints, _codebooks[i].usingDenseSampling(), _codebooks[i].getGridSize());
 			Mat row = currentClassBoW.row(j++);
 			_codebooks[i].getBoWTF(descriptors, row);
+			//_codebooks[i].getBoWLLC(descriptors, row);
 
 			for (int k = 0; k < currentClassBoW.cols; k++)
 				documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);

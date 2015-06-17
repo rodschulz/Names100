@@ -126,8 +126,6 @@ void Codebook::saveToFile(const string &_destinationFolder) const
 
 void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 {
-	index.build(centers, flann::KDTreeIndexParams(4));
-
 	if (_BoW.cols != centers.rows)
 	{
 		cout << "ERROR: wrong dimensions on BoW calculation\n";
@@ -136,6 +134,8 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 
 	if (_descriptors.rows > 0)
 	{
+		index.build(centers, flann::KDTreeIndexParams(4));
+
 		// Get frequencies of each word
 		for (int i = 0; i < _descriptors.rows; i++)
 		{
@@ -145,18 +145,103 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 			index.knnSearch(currentRow, indices, distances, 1);
 			_BoW.at<float>(0, indices.at<int>(0, 0)) += 1;
 		}
-		// Normalize using the total of word to get the TF
+		// Normalize using the total of words to get the TF
 		_BoW *= (1 / (float) _descriptors.rows);
 	}
 }
 
+void Codebook::getBoWLLC(const Mat &_descriptors, Mat &_BoW)
+{
+	if (_BoW.cols != centers.rows)
+	{
+		cout << "ERROR: wrong dimensions on BoW calculation\n";
+		return;
+	}
+
+	if (_descriptors.rows > 0)
+	{
+		index.build(centers, flann::KDTreeIndexParams(4));
+
+		double step = 0.05;
+		double threshold = 0.0001;
+		int maxIterations = 10000;
+		int neighborhood = 5;
+
+		// Find the code for each row (1 row == 1 descriptor)
+		for (int i = 0; i < _descriptors.rows; i++)
+		{
+			// Find the closer neighborhood
+			Mat indices, distances, currentRow;
+			_descriptors.row(i).copyTo(currentRow);
+			index.knnSearch(currentRow, indices, distances, neighborhood);
+
+			// Extract the closer centers
+			Mat B;
+			for (int j = 0; j < indices.cols; j++)
+			{
+				if (B.empty())
+					centers.row(indices.at<int>(j)).copyTo(B);
+				else
+					vconcat(B, centers.row(indices.at<int>(j)), B);
+			}
+			B = B.t();
+
+			// Create a starting point
+			Mat c;
+			normalize(Mat::ones(indices.cols, 1, CV_32FC1), c);
+
+			double delta = 1;
+			Mat minC;
+			float minValue = numeric_limits<float>::max();
+
+			// Find the optimum code
+			Mat xi = currentRow.t();
+			for (int j = 0; delta > threshold && j < maxIterations; j++)
+			{
+				Mat diffVector = xi - B * c;
+				double dist = norm(diffVector);
+				if (dist < minValue)
+				{
+					delta = fabs(dist - minValue);
+					minValue = dist;
+					c.copyTo(minC);
+				}
+
+				Mat gradient = getGradient(diffVector, B) * step;
+				c = c + gradient;
+				normalize(c, c);
+			}
+
+			// Update the BoW
+			int k = 0;
+			_BoW = Mat::zeros(_BoW.rows, _BoW.cols, _BoW.type());
+			for (int j = 0; j < indices.cols; j++)
+				_BoW.at<float>(0, indices.at<int>(j)) = minC.at<float>(k++, 0);
+		}
+	}
+}
+
+Mat Codebook::getGradient(const Mat &_diff, const Mat &_B)
+{
+	Mat gradient = Mat::zeros(_B.cols, 1, CV_32FC1);
+
+	for (int i = 0; i < _B.cols; i++)
+	{
+		for (int j = 0; j < _B.rows; j++)
+			gradient.at<float>(i, 0) += (2 * _diff.at<float>(i, 0) * (-_B.at<float>(j, i)));
+	}
+	normalize(gradient, gradient);
+
+	return gradient;
+}
+
 bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheLocation, vector<Codebook> &_codebooks)
 {
-	// Calculate hash of data in sample
+// Calculate hash of data in sample
 	vector<string> imageLocationList;
 	Helper::getContentsList(_sampleLocation, imageLocationList);
 
-	// Hash of the files used for the codebook (just the names for now)
+// Hash of the files used for the codebook (just the names for now)
 	string sampleHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
 	string filename = _cacheLocation + sampleHash + ".dat";
 

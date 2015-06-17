@@ -28,6 +28,7 @@ public:
 	void calculateCodebook(const string &_dataLocation, const int _maxInterationNumber, const double _stopThreshold);
 	void saveToFile(const string &_destinationFolder) const;
 	void getBoWTF(const Mat &_descriptor, Mat &_BoW);
+	void getBoWLLC(const Mat &_descriptor, Mat &_BoW);
 
 	inline int getClusterNumber() const
 	{
@@ -46,6 +47,7 @@ public:
 
 private:
 	void buildIndex();
+	Mat getGradient(const Mat &_diff, const Mat &_B);
 
 	Mat centers;
 	int clusterNumber;

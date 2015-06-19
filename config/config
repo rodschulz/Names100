@@ -11,6 +11,6 @@ kmeansMaxIter	10000
 kmeansThres	0.01
 
 # BoW calculation options
-denseSampling	true
+denseSampling	false
 gridSize	5
 useTFIDF	true

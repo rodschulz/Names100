@@ -150,7 +150,7 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 	}
 }
 
-void Codebook::getBoWLLC(const Mat &_descriptors, Mat &_BoW)
+void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW)
 {
 	if (_BoW.cols != centers.rows)
 	{
@@ -162,86 +162,111 @@ void Codebook::getBoWLLC(const Mat &_descriptors, Mat &_BoW)
 	{
 		index.build(centers, flann::KDTreeIndexParams(4));
 
-		double step = 0.05;
-		double threshold = 0.0001;
-		int maxIterations = 10000;
-		int neighborhood = 5;
+		/**
+		 * Make the LLC discretization (using the KNN approximation)
+		 */
 
-		// Find the code for each row (1 row == 1 descriptor)
+		// Find the code for each descriptor (1 row == 1 descriptor)
+		Mat codes = Mat::zeros(_descriptors.rows, centers.rows, CV_32FC1);
+		float beta = 1E-4;
 		for (int i = 0; i < _descriptors.rows; i++)
 		{
-			// Find the closer neighborhood
+			// Find the closest neighbors
 			Mat indices, distances, currentRow;
 			_descriptors.row(i).copyTo(currentRow);
-			index.knnSearch(currentRow, indices, distances, neighborhood);
+			index.knnSearch(currentRow, indices, distances, _neighborhood);
 
 			// Extract the closer centers
 			Mat B;
-			for (int j = 0; j < indices.cols; j++)
-			{
-				if (B.empty())
-					centers.row(indices.at<int>(j)).copyTo(B);
-				else
-					vconcat(B, centers.row(indices.at<int>(j)), B);
-			}
-			B = B.t();
+			copyIndexedRows(centers, indices, B);
 
-			// Create a starting point
-			Mat c;
-			normalize(Mat::ones(indices.cols, 1, CV_32FC1), c);
+			// Shift target descriptor to the origin
+			Mat z = Mat::zeros(B.rows, B.cols, CV_32FC1);
+			for (int j = 0; j < B.rows; j++)
+				((Mat) (B.row(j) - currentRow)).copyTo(z.row(j));
 
-			double delta = 1;
-			Mat minC;
-			float minValue = numeric_limits<float>::max();
+			Mat C = z * z.t();
+			C = C + (Mat::eye(B.rows, B.rows, CV_32FC1) * beta * trace(C)[0]);
+			Mat w = C.inv() * Mat::ones(B.rows, 1, CV_32FC1);
+			w /= sum(w)[0];
 
-			// Find the optimum code
-			Mat xi = currentRow.t();
-			for (int j = 0; delta > threshold && j < maxIterations; j++)
-			{
-				Mat diffVector = xi - B * c;
-				double dist = norm(diffVector);
-				if (dist < minValue)
-				{
-					delta = fabs(dist - minValue);
-					minValue = dist;
-					c.copyTo(minC);
-				}
-
-				Mat gradient = getGradient(diffVector, B) * step;
-				c = c + gradient;
-				normalize(c, c);
-			}
-
-			// Update the BoW
-			int k = 0;
-			_BoW = Mat::zeros(_BoW.rows, _BoW.cols, _BoW.type());
-			for (int j = 0; j < indices.cols; j++)
-				_BoW.at<float>(0, indices.at<int>(j)) = minC.at<float>(k++, 0);
+			// Copy data to the right positions
+			copyToIndex(w, indices, codes.row(i));
 		}
+		codes = codes.t();
+
+		/**
+		 * Max pooling
+		 */
+		vector<int> levels;
+		levels.push_back(1);
+		levels.push_back(2);
+		levels.push_back(4);
+
+		int imgWidth = 120;
+		int imgHeight = 150;
+
+		int totalBins = getBinTotal(levels);
+		vector<bool> initialized(totalBins, false);
+
+		// Create a pool with data from the coding phase
+		Mat pool = Mat::zeros(centers.rows, totalBins, CV_32FC1);
+		int acc = 0;
+		for (int level : levels)
+		{
+			double binWidth = (double) imgWidth / level;
+			double binHeight = (double) imgHeight / level;
+
+			// If level is 1, then all the keypoints are in the same bin
+			if (level == 1)
+			{
+				for (int i = 0; i < codes.rows; i++)
+				{
+					double minCode, maxCode;
+					minMaxIdx(codes.row(i), &minCode, &maxCode);
+					pool.at<float>(i, 0) = maxCode;
+				}
+				initialized[0] = true;
+				acc += level;
+			}
+			else
+			{
+				// Iterate over each keypoint updating the pooling according to
+				// the bin it belongs to
+				for (size_t k = 0; k < _keypoints.size(); k++)
+				{
+					// Get the bin where the current keypoint is
+					int binX = _keypoints[k].pt.x / binWidth;
+					int binY = _keypoints[k].pt.y / binHeight;
+					int bin = binY * level + binX + acc;
+
+					Mat poolBin = pool.col(bin);
+					if (!initialized[bin])
+					{
+						codes.col(k).copyTo(poolBin);
+						initialized[bin] = true;
+					}
+					else
+						cv::max(codes.col(k), pool.col(bin), poolBin);
+				}
+				acc += (level * level);
+			}
+		}
+
+		// Finally unravel the pooling matrix into a single vector as the LLC encoding with pyramid
+		_BoW = Mat::zeros(1, pool.rows * pool.cols, CV_32FC1);
+		pool = pool.t();
+		memcpy(_BoW.data, pool.data, sizeof(unsigned char) * _BoW.cols);
 	}
-}
-
-Mat Codebook::getGradient(const Mat &_diff, const Mat &_B)
-{
-	Mat gradient = Mat::zeros(_B.cols, 1, CV_32FC1);
-
-	for (int i = 0; i < _B.cols; i++)
-	{
-		for (int j = 0; j < _B.rows; j++)
-			gradient.at<float>(i, 0) += (2 * _diff.at<float>(i, 0) * (-_B.at<float>(j, i)));
-	}
-	normalize(gradient, gradient);
-
-	return gradient;
 }
 
 bool Codebook::loadCodebook(const string &_sampleLocation, const string &_cacheLocation, vector<Codebook> &_codebooks)
 {
-// Calculate hash of data in sample
+	// Calculate hash of data in sample
 	vector<string> imageLocationList;
 	Helper::getContentsList(_sampleLocation, imageLocationList);
 
-// Hash of the files used for the codebook (just the names for now)
+	// Hash of the files used for the codebook (just the names for now)
 	string sampleHash = Helper::calculateHash(imageLocationList, Config::getConfigHash());
 	string filename = _cacheLocation + sampleHash + ".dat";
 

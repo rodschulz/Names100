@@ -51,12 +51,16 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 		cout << "\tCalculating frequencies\n";
 		for (string imageLocation : imageList)
 		{
+			// Calculate descriptors
 			Mat descriptors;
 			vector<KeyPoint> keypoints;
 			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints, _codebooks[i].usingDenseSampling(), _codebooks[i].getGridSize());
+
+			// Calculate BoW
 			Mat row = currentClassBoW.row(j++);
-			_codebooks[i].getBoWTF(descriptors, row);
+			//_codebooks[i].getBoWTF(descriptors, row);
 			//_codebooks[i].getBoWLLC(descriptors, row);
+			_codebooks[i].calculateLLC(descriptors, keypoints, 5, row);
 
 			for (int k = 0; k < currentClassBoW.cols; k++)
 				documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);

@@ -28,7 +28,7 @@ public:
 	void calculateCodebook(const string &_dataLocation, const int _maxInterationNumber, const double _stopThreshold);
 	void saveToFile(const string &_destinationFolder) const;
 	void getBoWTF(const Mat &_descriptor, Mat &_BoW);
-	void getBoWLLC(const Mat &_descriptor, Mat &_BoW);
+	void calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW);
 
 	inline int getClusterNumber() const
 	{
@@ -48,6 +48,32 @@ public:
 private:
 	void buildIndex();
 	Mat getGradient(const Mat &_diff, const Mat &_B);
+
+	inline void copyIndexedRows(const Mat &_input, const Mat &_indices, Mat &_output)
+	{
+		_output = Mat();
+		for (int j = 0; j < _indices.cols; j++)
+		{
+			if (_output.empty())
+				_input.row(_indices.at<int>(j)).copyTo(_output);
+			else
+				vconcat(_output, _input.row(_indices.at<int>(j)), _output);
+		}
+	}
+
+	inline void copyToIndex(const Mat &_input, const Mat &_indices, Mat _output)
+	{
+		for (int j = 0; j < _indices.cols; j++)
+			_output.at<float>(0, _indices.at<int>(j)) = _input.at<float>(j, 0);
+	}
+
+	inline int getBinTotal(const vector<int> &_levels)
+	{
+		int total = 0;
+		for (int level : _levels)
+			total += (level * level);
+		return total;
+	}
 
 	Mat centers;
 	int clusterNumber;

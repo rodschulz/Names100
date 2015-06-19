@@ -241,8 +241,6 @@ void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_ke
 			}
 		}
 
-		Helper::printMatrix<float>(pool, 3, "boo1");
-
 		// Finally unravel the pooling matrix into a single vector as the LLC encoding with pyramid
 		if (_BoW.isContinuous())
 		{

@@ -28,7 +28,7 @@ public:
 	void calculateCodebook(const string &_dataLocation, const int _maxInterationNumber, const double _stopThreshold);
 	void saveToFile(const string &_destinationFolder) const;
 	void getBoWTF(const Mat &_descriptor, Mat &_BoW);
-	void calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW);
+	void calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW, const int _imgWidth, const int _imgHeight, const int _levels);
 
 	inline int getClusterNumber() const
 	{

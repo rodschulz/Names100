@@ -35,38 +35,54 @@ void getCodebooks(const string &_inputFolder, const vector<string> &_classNames,
 
 void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames, const string &_set, vector<Codebook> &_codebooks, vector<Mat> &_BoWs)
 {
+	BoWType bowType = Config::getBoWType();
+	int totalBins = Helper::getSqrSum(Helper::generateLevels(Config::getPyramidLevelNumber()));
+
+	// Iterate over each class
 	for (size_t i = 0; i < _classNames.size(); i++)
 	{
 		string className = _classNames[i];
 		cout << "Calculating BoW for class " << className << " using set " << _set << "\n";
 
+		int bowCols = bowType == LLC_SPM ? totalBins * _codebooks[i].getClusterNumber() : _codebooks[i].getClusterNumber();
+
+		// Get the list of images to process
 		vector<string> imageList;
 		Helper::getContentsList(_inputFolder + className + "/" + className + "_" + _set + "/", imageList);
-		Mat currentClassBoW = Mat::zeros(imageList.size(), _codebooks[i].getClusterNumber(), CV_32FC1);
+
+		// Create the matrix to hold the bows
+		Mat currentClassBoW = Mat::zeros(imageList.size(), bowCols, CV_32FC1);
 		_BoWs.push_back(currentClassBoW);
 
 		int j = 0;
 		Mat documentCounter = Mat::zeros(1, _codebooks[i].getClusterNumber(), CV_32FC1);
 
-		cout << "\tCalculating frequencies\n";
 		for (string imageLocation : imageList)
 		{
-			// Calculate descriptors
+			int imgWidth, imgHeight;
 			Mat descriptors;
 			vector<KeyPoint> keypoints;
-			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints, _codebooks[i].usingDenseSampling(), _codebooks[i].getGridSize());
+
+			// Get descriptors
+			Helper::calculateImageDescriptors(imageLocation, descriptors, keypoints, imgWidth, imgHeight, _codebooks[i].usingDenseSampling(), _codebooks[i].getGridSize());
 
 			// Calculate BoW
 			Mat row = currentClassBoW.row(j++);
-			//_codebooks[i].getBoWTF(descriptors, row);
-			//_codebooks[i].getBoWLLC(descriptors, row);
-			_codebooks[i].calculateLLC(descriptors, keypoints, 5, row);
+			if (bowType == FREQUENCIES)
+				_codebooks[i].getBoWTF(descriptors, row);
+			else
+				_codebooks[i].calculateLLC(descriptors, keypoints, Config::getLLCNeighbors(), row, imgWidth, imgHeight, Config::getPyramidLevelNumber());
 
-			for (int k = 0; k < currentClassBoW.cols; k++)
-				documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);
+			if (bowType == FREQUENCIES)
+			{
+				cout << "\tCalculating frequencies\n";
+				for (int k = 0; k < currentClassBoW.cols; k++)
+					documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);
+			}
 		}
 
-		if (Config::calculateTFIDF())
+		// Calculate TF-IDF if it is the right bow
+		if (bowType == FREQUENCIES && Config::calculateTFIDF())
 		{
 			cout << "\tCalculating tf-idf\n";
 

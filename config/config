@@ -10,7 +10,16 @@ codebookSize	10
 kmeansMaxIter	10000
 kmeansThres	0.01
 
-# BoW calculation options
+# Descriptor dense sampling options
 denseSampling	false
 gridSize	5
+
+# BoW generation options (LLC or freq)
+bowType		LLC
+
+# BoW freq options
 useTFIDF	true
+
+# BoW LLC options
+levels		3
+neighbors	5

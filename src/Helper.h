@@ -34,7 +34,7 @@ public:
 	static void getContentsList(const string &_folder, vector<string> &_fileList, const bool _appendToList = false);
 	static void createImageSamples(const string &_inputFolder, const double _sampleSize, const long _seed = -1);
 	static void getClassNames(const string &_inputFolder, vector<string> &_classNames);
-	static bool calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, const bool _denseSaming = false, const int _gridSize = 2);
+	static bool calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, int &_imgWidth, int &_imgHeight, const bool _denseSaming = false, const int _gridSize = 2);
 	static string calculateHash(const vector<string> &_imageLocationList, const string &_extra);
 	static void concatMats(vector<Mat> &_vec, Mat &_res);
 
@@ -43,6 +43,23 @@ public:
 		stringstream stream;
 		stream << hex << _number;
 		return stream.str();
+	}
+
+	static vector<int> generateLevels(const int _levelsNumber)
+	{
+		vector<int> levels(_levelsNumber);
+		for (int i = 0; i < _levelsNumber; i++)
+			levels[i] = pow(2, i);
+		return levels;
+	}
+
+	template<typename T>
+	static inline int getSqrSum(const vector<T> &_data)
+	{
+		int total = 0;
+		for (T level : _data)
+			total += (level * level);
+		return total;
 	}
 
 private:

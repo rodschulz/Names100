@@ -12,6 +12,11 @@
 
 using namespace std;
 
+enum BoWType
+{
+	FREQUENCIES, LLC_SPM
+};
+
 class Config
 {
 public:
@@ -61,9 +66,21 @@ public:
 	{
 		return getInstance()->gridSize;
 	}
+	static BoWType getBoWType()
+	{
+		return getInstance()->bowType;
+	}
 	static bool calculateTFIDF()
 	{
 		return getInstance()->useTFIDF;
+	}
+	static int getPyramidLevelNumber()
+	{
+		return getInstance()->levels;
+	}
+	static int getLLCNeighbors()
+	{
+		return getInstance()->neighbors;
 	}
 	static string getConfigHash()
 	{
@@ -82,6 +99,14 @@ private:
 	// Parses the given value according to the given key
 	static void parse(const string _key, const string _value);
 
+	static inline BoWType parseBowType(const string &_value)
+	{
+		if (_value.compare("LLC") == 0)
+			return LLC_SPM;
+		else
+			return FREQUENCIES;
+	}
+
 	string cacheLocation;
 
 	bool createSample;
@@ -93,6 +118,12 @@ private:
 
 	bool denseSampling;
 	int gridSize;
+
+	BoWType bowType;
+
 	bool useTFIDF;
+
+	int levels;
+	int neighbors;
 };
 

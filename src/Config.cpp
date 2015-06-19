@@ -23,7 +23,13 @@ Config::Config()
 
 	denseSampling = false;
 	gridSize = 0;
+
+	bowType = FREQUENCIES;
+
 	useTFIDF = false;
+
+	levels = 2;
+	neighbors = 2;
 
 }
 
@@ -79,13 +85,25 @@ void Config::parse(const string _key, const string _value)
 	else if (_key.compare("kmeansThres") == 0)
 		getInstance()->kmeansThres = atof(_value.c_str());
 
-	// BoF options
+	// Sampling options
 	else if (_key.compare("denseSampling") == 0)
 		getInstance()->denseSampling = _value.compare("true") == 0;
 
 	else if (_key.compare("gridSize") == 0)
 		getInstance()->gridSize = atoi(_value.c_str());
 
+	// BoW type options
+	else if (_key.compare("bowType") == 0)
+		getInstance()->bowType = parseBowType(_value);
+
+	// BoW freq options
 	else if (_key.compare("useTFIDF") == 0)
 		getInstance()->useTFIDF = _value.compare("true") == 0;
+
+	// BoW LLC options
+	else if (_key.compare("levels") == 0)
+		getInstance()->levels = atoi(_value.c_str());
+
+	else if (_key.compare("neighbors") == 0)
+		getInstance()->neighbors = atoi(_value.c_str());
 }

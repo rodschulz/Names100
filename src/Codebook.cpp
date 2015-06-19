@@ -92,9 +92,10 @@ void Codebook::calculateCodebook(const string &_dataLocation, const int _maxInte
 	for (string imageLocation : imageLocationList)
 	{
 		// Calculate image's descriptors
+		int width, height;
 		vector<KeyPoint> keypoints;
 		descriptors.push_back(Mat());
-		if (!Helper::calculateImageDescriptors(imageLocation, descriptors.back(), keypoints, denseSampling, gridSize))
+		if (!Helper::calculateImageDescriptors(imageLocation, descriptors.back(), keypoints, width, height, denseSampling, gridSize))
 			continue;
 
 		if (samples.rows == 0)
@@ -150,14 +151,8 @@ void Codebook::getBoWTF(const Mat &_descriptors, Mat &_BoW)
 	}
 }
 
-void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW)
+void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_keypoints, const int _neighborhood, Mat &_BoW, const int _imgWidth, const int _imgHeight, const int _levels)
 {
-	if (_BoW.cols != centers.rows)
-	{
-		cout << "ERROR: wrong dimensions on BoW calculation\n";
-		return;
-	}
-
 	if (_descriptors.rows > 0)
 	{
 		index.build(centers, flann::KDTreeIndexParams(4));
@@ -198,15 +193,8 @@ void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_ke
 		/**
 		 * Max pooling
 		 */
-		vector<int> levels;
-		levels.push_back(1);
-		levels.push_back(2);
-		levels.push_back(4);
-
-		int imgWidth = 120;
-		int imgHeight = 150;
-
-		int totalBins = getBinTotal(levels);
+		vector<int> levels = Helper::generateLevels(_levels);
+		int totalBins = Helper::getSqrSum<int>(levels);
 		vector<bool> initialized(totalBins, false);
 
 		// Create a pool with data from the coding phase
@@ -214,8 +202,8 @@ void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_ke
 		int acc = 0;
 		for (int level : levels)
 		{
-			double binWidth = (double) imgWidth / level;
-			double binHeight = (double) imgHeight / level;
+			double binWidth = (double) _imgWidth / level;
+			double binHeight = (double) _imgHeight / level;
 
 			// If level is 1, then all the keypoints are in the same bin
 			if (level == 1)
@@ -253,10 +241,23 @@ void Codebook::calculateLLC(const Mat &_descriptors, const vector<KeyPoint> &_ke
 			}
 		}
 
+		Helper::printMatrix<float>(pool, 3, "boo1");
+
 		// Finally unravel the pooling matrix into a single vector as the LLC encoding with pyramid
-		_BoW = Mat::zeros(1, pool.rows * pool.cols, CV_32FC1);
-		pool = pool.t();
-		memcpy(_BoW.data, pool.data, sizeof(unsigned char) * _BoW.cols);
+		if (_BoW.isContinuous())
+		{
+			Mat transposedPool = pool.t();
+			memcpy(_BoW.data, transposedPool.data, sizeof(float) * _BoW.cols);
+		}
+		else
+		{
+			for (int i = 0; i < pool.cols; i++)
+				for (int j = 0; j < pool.rows; j++)
+					_BoW.at<float>(0, i * pool.rows + j) = pool.at<float>(j, i);
+		}
+
+		Mat sqrSum = _BoW * _BoW.t();
+		_BoW /= sqrt(sqrSum.at<float>(0, 0));
 	}
 }
 

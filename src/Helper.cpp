@@ -121,10 +121,13 @@ void Helper::getClassNames(const string &_inputFolder, vector<string> &_classNam
 		_classNames[i] = _classNames[i].substr(_classNames[i].find_last_of('/') + 1);
 }
 
-bool Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, const bool _denseSaming, const int _gridSize)
+bool Helper::calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, int &_imgWidth, int &_imgHeight, const bool _denseSaming, const int _gridSize)
 {
 	bool statusOk = true;
 	Mat image = imread(_imageLocation, CV_LOAD_IMAGE_GRAYSCALE);
+
+	_imgWidth = image.cols;
+	_imgHeight = image.rows;
 
 	Ptr<FeatureDetector> featureExtractor;
 	Ptr<DescriptorExtractor> descriptorExtractor = DescriptorExtractor::create("SIFT");

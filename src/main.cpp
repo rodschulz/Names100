@@ -110,7 +110,7 @@ int main(int _nargs, char ** _vargs)
 	string inputFolder = _vargs[1];
 	cout << "Input folder: " << inputFolder << endl;
 
-	Config::load("./config/config");
+	Config::load("../config/config");
 
 	// Create a new image sample
 	if (Config::createImageSample())
@@ -130,42 +130,82 @@ int main(int _nargs, char ** _vargs)
 	calculateBoWs(inputFolder, classNames, "val", codebooks, validationBoWs);
 	calculateBoWs(inputFolder, classNames, "test", codebooks, testBoWs);
 
-	//Preparing labels for training Set... there must be a better way to do this but I'm having problems with arrays
-	int t = 0;
-	int nClasses = trainBoWs.size();
-	vector<int> trainLabels;
-	for (int i = 0; i < nClasses; i++)
-	{
-		Mat currClass = trainBoWs[i];
-		int rows = currClass.rows;
-		for (int j = 0; j < rows; j++)
-		{
-			trainLabels.push_back(i);
-			t++;
+	int totalNames = trainBoWs.size();
+	vector<vector<float>> allScores;
+
+	// 1 vs. 1 SVM Classification
+	for(int n = 0; n < totalNames; n++){ // n == current name
+		vector<float> nScores;
+		for(int m = 0; m < totalNames; m++) { // m == name for pair, comparison is n vs. m
+			if(m != n) {
+				cout << "Comparing: " << classNames[n] << " vs. " << classNames[m] << endl;
+				// Training for n vs. m comparison
+				vector<Mat> tempTrain;
+				tempTrain.push_back(trainBoWs[n]);
+				tempTrain.push_back(trainBoWs[m]);
+
+				Mat trainnm;
+				Helper::concatMats(tempTrain, trainnm);
+
+				const int totalLabels = trainBoWs[n].rows + trainBoWs[m].rows;
+				int trainLabels[totalLabels];
+
+				//OJO con los numeros
+				for (int k = 0; k < 240; k++) {
+					trainLabels[k] = 1;
+				}
+				for (int k = 240; k < 480; k++) {
+					trainLabels[k] = -1;
+				}
+
+				//Aqui debo hacer que trainLabels sea Mat
+				Mat labelsMat(totalLabels, 1, CV_32SC1, trainLabels);
+
+				// Model SVM Parameters
+				CvSVMParams params;
+				params.svm_type = CvSVM::C_SVC;
+				params.kernel_type = CvSVM::LINEAR;
+				// Finishing criteria
+				params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-6);
+				//svm::loadSVMParams(params, "../config/svmparams");
+				params.C = 10000;
+				//params.gamma = 3;
+
+				// Model SVM
+				CvSVM SVM;
+				cout << "Training SVM model . . ." << endl;
+
+				// Training!
+				SVM.train(trainnm, labelsMat, Mat(), Mat(), params);
+
+				//This changes for validation/test runs
+				vector<Mat> tempVal;
+				tempVal.push_back(validationBoWs[n]);
+				tempVal.push_back(validationBoWs[m]);
+
+				Mat validationSet;
+				Helper::concatMats(tempVal, validationSet);
+
+				cout << "Running SVM . . ." << endl;
+
+				for (int k = 0; k < validationSet.rows; k++) {
+					float res = SVM.predict(trainnm.row(k));
+					nScores.push_back(res);
+					//cout << "k: " << k << " predict: " << res << endl;
+				}
+
+				cout << "Done." << endl;
+
+			}else{
+				nScores.push_back(NAN); //NAN result for comparison between same names
+			}
 		}
+		//for(int y=0; y < nScores.size(); y++)
+		//	cout << nScores[y] << endl;
+		allScores.push_back(nScores);
 	}
 
-// Classification part
-//	vector<Mat> dataToTrain;
-//	Svm::setUpTrainData(trainBoWs, dataToTrain, trainLabels.size());
-//
-//	// Model SVM Parameters
-//	CvSVMParams params;
-//	params.svm_type = CvSVM::C_SVC;
-//	params.kernel_type = CvSVM::RBF;
-//	// Finishing criteria
-//	params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-6);
-//	//svm::loadSVMParams(params, "../config/svmparams");
-//	params.C = 100000;
-//	params.gamma = 3;
-//
-//	// Model SVM
-//	CvSVM SVM;
-//	cout << "Training SVM model . . ." << endl;
-//
-//	// Training!
-//	SVM.train(dataToTrain[0], dataToTrain[1], Mat(), Mat(), params);
-//
+
 //	Mat validationSet;
 //	Helper::concatMats(validationBoWs, validationSet);
 //

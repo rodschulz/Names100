@@ -133,17 +133,17 @@ int main(int _nargs, char ** _vargs)
 	int totalNames = trainBoWs.size();
 	vector<vector<float>> allScores;
 
-	//Change here for validation/test runs
-	int totalImages = 0;
-	int validationSize = validationBoWs.size();
-	for(int k = 0; k < validationSize; k++)
-		totalImages += validationBoWs[k].rows;
+	// Arrays to save results
+	int *rightGuesses;//, *totalGuesses;
+	rightGuesses = (int *)malloc(totalNames*sizeof(int));
+	//totalGuesses = (int *)malloc(totalNames*sizeof(int));
 
-	int *rightGuesses;
-	rightGuesses = (int *)malloc(totalImages*sizeof(int));
-
-	for(int k = 0; k < totalImages; k++)
+	for(int k = 0; k < totalNames; k++) {
 		rightGuesses[k] = 0;
+	//	totalGuesses[k] = 0;
+	}
+
+	int totalGuesses = 0;
 
 	// 1 vs. 1 SVM Classification
 	for(int n = 0; n < totalNames; n++){ // n == current name
@@ -188,7 +188,6 @@ int main(int _nargs, char ** _vargs)
 				SVM.train(trainnm, labelsMat, Mat(), Mat(), params);
 
 				//This changes for validation/test runs
-				//Don't forget also to change before the SVM starts!!! On rightGuesses definition
 				vector<Mat> tempVal;
 				tempVal.push_back(validationBoWs[n]);
 				tempVal.push_back(validationBoWs[m]);
@@ -196,7 +195,7 @@ int main(int _nargs, char ** _vargs)
 				Mat validationSet;
 				Helper::concatMats(tempVal, validationSet);
 
-				cout << "Running SVM . . ." << endl;
+				cout << "Running SVM . . . Comparing " << validationSet.rows << " images." << endl;
 
 				for (int k = 0; k < validationSet.rows; k++) {
 					float res = SVM.predict(validationSet.row(k));
@@ -206,6 +205,8 @@ int main(int _nargs, char ** _vargs)
 					}else if(k >= validationBoWs[n].rows && res == -1){
 						rightGuesses[m]++;
 					}
+					totalGuesses++;
+					//totalGuesses[m]++;
 					//cout << "k: " << k << " | label: " << trainLabels[k] << " | predict: " << res << endl;
 				}
 
@@ -221,17 +222,21 @@ int main(int _nargs, char ** _vargs)
 	}
 
 	//Scan results and print them to file. Format: Name,  Number of right guesses
-	ofstream outputfile;
+	//ofstream outputfile;
+	FILE *of;
 	string outputfilename = "../results/results";
+	of = fopen(outputfilename.c_str(), "w");
 
-	outputfile.open(outputfilename, ios::out);
-	outputfile << "# Name\tTotal right guesses" << endl;
+	//outputfile.open(outputfilename, ios::out);
+	fprintf(of, "# Name\tRightGuesses\n");
+	fprintf(of, "# Total Guesses = %d\n", totalGuesses);
 
 	int totalSize = allScores.size();
 	for(int k = 0; k < totalSize; k++)
-		outputfile << classNames[k] << "\t" << rightGuesses[k] << endl;
+		//outputfile << classNames[k] << "\t" << rightGuesses[k] << "\t" << rightGuesses[k] << endl;
+		fprintf(of, "%s \t %d \t %.2f\n", classNames[k].c_str(), rightGuesses[k], ((float)rightGuesses[k])/((float)totalGuesses));
 
-	outputfile.close();
+	fclose(of);
 
 
 	cout << "Finished\n";

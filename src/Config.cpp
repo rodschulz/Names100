@@ -59,7 +59,7 @@ void Config::load(const string &_filename)
 		inputFile.close();
 	}
 	else
-		cout << "Unable to open input: " << _filename << "\n";
+		cout << "Unable to open file: " << _filename << "\n";
 }
 
 void Config::parse(const string _key, const string _value)

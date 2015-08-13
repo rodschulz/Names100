@@ -34,11 +34,11 @@ public:
 	{
 		return clusterNumber;
 	}
-	inline bool usingDenseSampling()
+	inline bool usingDenseSampling() const
 	{
 		return denseSampling;
 	}
-	inline int getGridSize()
+	inline int getGridSize() const
 	{
 		return gridSize;
 	}

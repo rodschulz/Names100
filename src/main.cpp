@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <chrono>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/ml/ml.hpp>
@@ -11,6 +12,7 @@
 #include "Svm.h"
 
 using namespace std;
+using namespace std::chrono;
 using namespace cv;
 
 void getCodebooks(const string &_inputFolder, const vector<string> &_classNames, vector<Codebook> &_codebooks)
@@ -38,11 +40,15 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 	BoWType bowType = Config::getBoWType();
 	int totalBins = Helper::getSqrSum(Helper::generateLevels(Config::getPyramidLevelNumber()));
 
+	// Create the set of BoWs
+	_BoWs.resize(_classNames.size());
+
 	// Iterate over each class
+#pragma omp parallel for
 	for (size_t i = 0; i < _classNames.size(); i++)
 	{
 		string className = _classNames[i];
-		cout << "Calculating BoW for class " << className << " using set " << _set << "\n";
+		cout << "Calculating BoW for class " << className << " using set " << _set << endl;
 
 		int bowCols = bowType == LLC_SPM ? totalBins * _codebooks[i].getClusterNumber() : _codebooks[i].getClusterNumber();
 
@@ -52,7 +58,7 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 
 		// Create the matrix to hold the bows
 		Mat currentClassBoW = Mat::zeros(imageList.size(), bowCols, CV_32FC1);
-		_BoWs.push_back(currentClassBoW);
+		_BoWs[i] = currentClassBoW;
 
 		int j = 0;
 		Mat documentCounter = Mat::zeros(1, _codebooks[i].getClusterNumber(), CV_32FC1);
@@ -99,6 +105,26 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 	}
 }
 
+void writeResults(const vector<string> &_classNames, const vector<vector<float>> &_scores, vector<int> &_correctGuesses, const int _totalGuesses)
+{
+	// Create results folder
+	string cmd = "mkdir -p ../results/";
+	if (system(cmd.c_str()) != 0)
+		cout << "WARNING: can't create results folder\n";
+
+	FILE *resultsFile;
+	string outputfilename = "../results/results";
+	resultsFile = fopen(outputfilename.c_str(), "w");
+
+	fprintf(resultsFile, "# Name\tRightGuesses\n");
+	fprintf(resultsFile, "# Total Guesses = %d\n", _totalGuesses);
+
+	int totalSize = _scores.size();
+	for (int k = 0; k < totalSize; k++)
+		fprintf(resultsFile, "%s \t %d \t %.2f\n", _classNames[k].c_str(), _correctGuesses[k], ((float) _correctGuesses[k]) / ((float) _totalGuesses));
+	fclose(resultsFile);
+}
+
 int main(int _nargs, char ** _vargs)
 {
 	if (_nargs < 2)
@@ -110,7 +136,7 @@ int main(int _nargs, char ** _vargs)
 	string inputFolder = _vargs[1];
 	cout << "Input folder: " << inputFolder << endl;
 
-	Config::load("../config/config");
+	Config::load("./config/config");
 
 	// Create a new image sample
 	if (Config::createImageSample())
@@ -130,27 +156,23 @@ int main(int _nargs, char ** _vargs)
 	calculateBoWs(inputFolder, classNames, "val", codebooks, validationBoWs);
 	calculateBoWs(inputFolder, classNames, "test", codebooks, testBoWs);
 
+	int totalGuesses = 0;
 	int totalNames = trainBoWs.size();
 	vector<vector<float>> allScores;
-
-	// Arrays to save results
-	int *rightGuesses;//, *totalGuesses;
-	rightGuesses = (int *)malloc(totalNames*sizeof(int));
-	//totalGuesses = (int *)malloc(totalNames*sizeof(int));
-
-	for(int k = 0; k < totalNames; k++) {
-		rightGuesses[k] = 0;
-	//	totalGuesses[k] = 0;
-	}
-
-	int totalGuesses = 0;
+	vector<int> rightGuesses = vector<int>(totalNames, 0);
 
 	// 1 vs. 1 SVM Classification
-	for(int n = 0; n < totalNames; n++){ // n == current name
+	for (int n = 0; n < totalNames; n++)
+	{
+		// n == current name
 		vector<float> nScores;
-		for(int m = 0; m < totalNames; m++) { // m == name for pair, comparison is n vs. m
-			if(m != n) {
+		for (int m = 0; m < totalNames; m++)
+		{
+			// m == name for pair, comparison is n vs. m
+			if (m != n)
+			{
 				cout << "Comparing: " << classNames[n] << " vs. " << classNames[m] << endl;
+
 				// Training for n vs. m comparison
 				vector<Mat> tempTrain;
 				tempTrain.push_back(trainBoWs[n]);
@@ -161,21 +183,20 @@ int main(int _nargs, char ** _vargs)
 
 				const int totalLabels = trainBoWs[n].rows + trainBoWs[m].rows;
 				int *trainLabels;
-				trainLabels = (int *)malloc(totalLabels*sizeof(int));
+				trainLabels = (int *) malloc(totalLabels * sizeof(int));
 
-				for (int k = 0; k < trainBoWs[n].rows; k++) {
+				for (int k = 0; k < trainBoWs[n].rows; k++)
 					trainLabels[k] = 1;
-				}
-				for (int k = trainBoWs[n].rows; k < totalLabels; k++) {
+				for (int k = trainBoWs[n].rows; k < totalLabels; k++)
 					trainLabels[k] = -1;
-				}
 
-				Mat labelsMat(totalLabels, 1, CV_32SC1, trainLabels);
+				Mat labelsMat = Mat(totalLabels, 1, CV_32SC1, trainLabels);
 
 				// Model SVM Parameters
 				CvSVMParams params;
 				params.svm_type = CvSVM::C_SVC;
 				params.kernel_type = CvSVM::LINEAR;
+
 				// Finishing criteria
 				params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-6);
 				params.C = 10000;
@@ -197,47 +218,30 @@ int main(int _nargs, char ** _vargs)
 
 				cout << "Running SVM . . . Comparing " << validationSet.rows << " images." << endl;
 
-				for (int k = 0; k < validationSet.rows; k++) {
+				for (int k = 0; k < validationSet.rows; k++)
+				{
 					float res = SVM.predict(validationSet.row(k));
 					nScores.push_back(res);
-					if(k < validationBoWs[n].rows && res == 1){
+					if (k < validationBoWs[n].rows && res == 1)
 						rightGuesses[n]++;
-					}else if(k >= validationBoWs[n].rows && res == -1){
+					else if (k >= validationBoWs[n].rows && res == -1)
 						rightGuesses[m]++;
-					}
 					totalGuesses++;
-					//totalGuesses[m]++;
-					//cout << "k: " << k << " | label: " << trainLabels[k] << " | predict: " << res << endl;
 				}
 
+				free(trainLabels);
 				cout << "Done." << endl;
 
-			}else{
-				nScores.push_back(NAN); //NAN result for comparison between same names
 			}
+			else
+				nScores.push_back(NAN); //NAN result for comparison between same names
 		}
-		//for(int y=0; y < nScores.size(); y++)
-		//	cout << nScores[y] << endl;
+
 		allScores.push_back(nScores);
 	}
 
-	//Scan results and print them to file. Format: Name,  Number of right guesses
-	//ofstream outputfile;
-	FILE *of;
-	string outputfilename = "../results/results";
-	of = fopen(outputfilename.c_str(), "w");
-
-	//outputfile.open(outputfilename, ios::out);
-	fprintf(of, "# Name\tRightGuesses\n");
-	fprintf(of, "# Total Guesses = %d\n", totalGuesses);
-
-	int totalSize = allScores.size();
-	for(int k = 0; k < totalSize; k++)
-		//outputfile << classNames[k] << "\t" << rightGuesses[k] << "\t" << rightGuesses[k] << endl;
-		fprintf(of, "%s \t %d \t %.2f\n", classNames[k].c_str(), rightGuesses[k], ((float)rightGuesses[k])/((float)totalGuesses));
-
-	fclose(of);
-
+	// Write results
+	writeResults(classNames, allScores, rightGuesses, totalGuesses);
 
 	cout << "Finished\n";
 	return EXIT_SUCCESS;

@@ -2,7 +2,7 @@ IS_WINDOWS	:= n
 IS_DEBUG	:= y
 USE_PKGCONFIG	:= y
 
-CXXFLAGS	:= -Wall -Wextra -pedantic -Wno-unused-function -std=gnu++11
+CXXFLAGS	:= -Wall -Wextra -pedantic -Wno-unused-function -std=gnu++11 -fopenmp
 LDFLAGS		:= -lpthread -lm
 
 ifeq ($(IS_WINDOWS),y)

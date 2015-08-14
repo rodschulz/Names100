@@ -1,0 +1,10 @@
+codebookSize;	denseSampling;	bowType
+200; 		true; 		freq
+1000; 		true; 		freq
+10000; 		true; 		freq
+200; 		false;		freq
+1000; 		false;		freq
+10000; 		false;		freq
+200; 		false;		LLC
+1000; 		false;		LLC
+10000; 		false;		LLC

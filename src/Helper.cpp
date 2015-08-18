@@ -4,6 +4,7 @@
  */
 #include "Helper.h"
 #include <stdlib.h>
+#include <ctime>
 #include <dirent.h>
 #include <cstring>
 #include <iostream>
@@ -13,8 +14,12 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/nonfree/features2d.hpp>
 #include <opencv2/nonfree/nonfree.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
 
 using namespace cv;
+
+boost::random::mt19937 randomGenerator;
 
 Helper::Helper()
 {
@@ -26,10 +31,9 @@ Helper::~Helper()
 
 int Helper::getRandomNumber(const int _min, const int _max)
 {
-	srand(rand());
-	srand(rand());
-	int number = _min + (rand() % (int) (_max - _min + 1));
-	return number;
+	randomGenerator.seed(std::time(0));
+	boost::random::uniform_int_distribution<> dist(_min, _max);
+	return dist(randomGenerator);
 }
 
 void Helper::getContentsList(const string &_folder, vector<string> &_contents, const bool _appendToList)
@@ -187,20 +191,24 @@ void Helper::concatMats(vector<Mat> &_vec, Mat &_res)
 	int s = _vec.size();
 	Mat aux;
 
-	if(s > 2) {
+	if (s > 2)
+	{
 		vconcat(_vec[0], _vec[1], aux);
-		for (int i = 2; i < s - 1; i++) {
+		for (int i = 2; i < s - 1; i++)
+		{
 			vconcat(aux, _vec[i], aux);
 		}
 
 		vconcat(aux, _vec[s - 1], _res);
-	}else{
+	}
+	else
+	{
 		vconcat(_vec[0], _vec[1], _res);
 	}
 }
 
-bool Helper::fileExists(const char *_filename){
-	std::ifstream infile(_filename);
-	cout << _filename << endl;
+bool Helper::fileExists(const string &_filename)
+{
+	std::ifstream infile(_filename.c_str());
 	return infile.good();
 }

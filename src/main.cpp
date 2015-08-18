@@ -6,14 +6,46 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/ml/ml.hpp>
+#include "opencv2/contrib/contrib.hpp"
 #include "Helper.h"
 #include "Codebook.h"
 #include "Config.h"
 #include "Svm.h"
+#include "EigenFaces.h"
 
 using namespace std;
 using namespace std::chrono;
 using namespace cv;
+
+void testRandomClassification(const string &_inputFolder, const vector<string> &_classNames, const int _iterations)
+{
+	cout << "Testing random classification accuracy, please wait..." << endl;
+
+	double stats = 0;
+
+	for (int i = 0; i < _iterations; i++)
+	{
+		float matches = 0;
+		float imageNumber = 0;
+
+		for (string className : _classNames)
+		{
+			vector<string> imageLocationList;
+			Helper::getContentsList(_inputFolder + className + "/" + className + "_test/", imageLocationList);
+
+			for (size_t j = 0; j < imageLocationList.size(); j++)
+			{
+				int randomClass = Helper::getRandomNumber(0, _classNames.size() - 1);
+				matches += (className.compare(_classNames[randomClass]) == 0 ? 1 : 0);
+				imageNumber++;
+			}
+		}
+		stats += (matches / imageNumber);
+	}
+
+	stats /= (double) _iterations;
+	cout << "Random clasification accuracy rate for " << _iterations << " iterations is: " << stats * 100 << "%" << endl;
+}
 
 void getCodebooks(const string &_inputFolder, const vector<string> &_classNames, vector<Codebook> &_codebooks)
 {
@@ -35,9 +67,9 @@ void getCodebooks(const string &_inputFolder, const vector<string> &_classNames,
 	}
 }
 
-void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames, const string &_set, vector<Codebook> &_codebooks, vector<Mat> &_BoWs)
+void calculateRepresentation(const string &_inputFolder, const vector<string> &_classNames, const string &_set, vector<Codebook> &_codebooks, vector<Mat> &_BoWs)
 {
-	BoWType bowType = Config::getBoWType();
+	BoWType representationType = Config::getBoWType();
 	int totalBins = Helper::getSqrSum(Helper::generateLevels(Config::getPyramidLevelNumber()));
 
 	// Create the set of BoWs
@@ -50,7 +82,7 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 		string className = _classNames[i];
 		cout << "Calculating BoW for class " << className << " using set " << _set << endl;
 
-		int bowCols = bowType == LLC_SPM ? totalBins * _codebooks[i].getClusterNumber() : _codebooks[i].getClusterNumber();
+		int bowCols = representationType == LLC_SPM ? totalBins * _codebooks[i].getClusterNumber() : _codebooks[i].getClusterNumber();
 
 		// Get the list of images to process
 		vector<string> imageList;
@@ -74,12 +106,12 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 
 			// Calculate BoW
 			Mat row = currentClassBoW.row(j++);
-			if (bowType == FREQUENCIES)
+			if (representationType == FREQUENCIES)
 				_codebooks[i].getBoWTF(descriptors, row);
 			else
 				_codebooks[i].calculateLLC(descriptors, keypoints, Config::getLLCNeighbors(), row, imgWidth, imgHeight, Config::getPyramidLevelNumber());
 
-			if (bowType == FREQUENCIES)
+			if (representationType == FREQUENCIES)
 			{
 				cout << "\tCalculating frequencies\n";
 				for (int k = 0; k < currentClassBoW.cols; k++)
@@ -88,7 +120,7 @@ void calculateBoWs(const string &_inputFolder, const vector<string> &_classNames
 		}
 
 		// Calculate TF-IDF if it is the right bow
-		if (bowType == FREQUENCIES && Config::calculateTFIDF())
+		if (representationType == FREQUENCIES && Config::calculateTFIDF())
 		{
 			cout << "\tCalculating tf-idf\n";
 
@@ -146,15 +178,19 @@ int main(int _nargs, char ** _vargs)
 	vector<string> classNames;
 	Helper::getClassNames(inputFolder, classNames);
 
+	// Test random classification
+	if (Config::testRandomClassification())
+		testRandomClassification(inputFolder, classNames, Config::getRandomClassificationIterations());
+
 	// Generate/load the codebook for each class
 	vector<Codebook> codebooks;
 	getCodebooks(inputFolder, classNames, codebooks);
 
 	// Calculate the BoW for each image in each set
 	vector<Mat> trainBoWs, validationBoWs, testBoWs;
-	calculateBoWs(inputFolder, classNames, "train", codebooks, trainBoWs);
-	calculateBoWs(inputFolder, classNames, "val", codebooks, validationBoWs);
-	calculateBoWs(inputFolder, classNames, "test", codebooks, testBoWs);
+	calculateRepresentation(inputFolder, classNames, "train", codebooks, trainBoWs);
+	calculateRepresentation(inputFolder, classNames, "val", codebooks, validationBoWs);
+	calculateRepresentation(inputFolder, classNames, "test", codebooks, testBoWs);
 
 	int totalGuesses = 0;
 	int totalNames = trainBoWs.size();

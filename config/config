@@ -6,16 +6,16 @@ createSample	false
 sampleSize	0.2
 
 # Codebook calculation options
-codebookSize	10
+codebookSize		1000
 kmeansMaxIter	10000
-kmeansThres	0.01
+kmeansThres	0.005
 
 # Descriptor dense sampling options
-denseSampling	false
+denseSampling		 		false
 gridSize	5
 
 # BoW generation options (LLC or freq)
-bowType		LLC
+bowType				LLC
 
 # BoW freq options
 useTFIDF	true
@@ -23,3 +23,7 @@ useTFIDF	true
 # BoW LLC options
 levels		3
 neighbors	5
+
+# Random classification accuracy test
+testRandom	true
+testIterations	100

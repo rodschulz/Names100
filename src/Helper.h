@@ -37,7 +37,7 @@ public:
 	static bool calculateImageDescriptors(const string &_imageLocation, Mat &_descriptors, vector<KeyPoint> &_keypoints, int &_imgWidth, int &_imgHeight, const bool _denseSaming = false, const int _gridSize = 2);
 	static string calculateHash(const vector<string> &_imageLocationList, const string &_extra);
 	static void concatMats(vector<Mat> &_vec, Mat &_res);
-	static bool fileExists(const char *_filename);
+	static bool fileExists(const string &_filename);
 
 	static inline string toHexString(const size_t _number)
 	{

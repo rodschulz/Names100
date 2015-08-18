@@ -82,6 +82,14 @@ public:
 	{
 		return getInstance()->neighbors;
 	}
+	static bool testRandomClassification()
+	{
+		return getInstance()->testRandom;
+	}
+	static int getRandomClassificationIterations()
+	{
+		return getInstance()->testIterations;
+	}
 	static string getConfigHash()
 	{
 		string str = "";
@@ -125,5 +133,8 @@ private:
 
 	int levels;
 	int neighbors;
+
+	bool testRandom;
+	int testIterations;
 };
 

@@ -31,6 +31,8 @@ Config::Config()
 	levels = 2;
 	neighbors = 2;
 
+	testRandom = false;
+	testIterations = 0;
 }
 
 Config::~Config()
@@ -106,4 +108,11 @@ void Config::parse(const string _key, const string _value)
 
 	else if (_key.compare("neighbors") == 0)
 		getInstance()->neighbors = atoi(_value.c_str());
+
+	// Random classification test options
+	else if (_key.compare("testRandom") == 0)
+		getInstance()->testRandom = _value.compare("true") == 0;
+
+	else if (_key.compare("testIterations") == 0)
+		getInstance()->testIterations = atoi(_value.c_str());
 }

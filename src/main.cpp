@@ -177,7 +177,7 @@ int main(int _nargs, char ** _vargs)
 	fclose(resultsFile);
 
 	// 1 vs. 1 SVM Classification
-	/*for (int n = 0; n < totalNames; n++){
+	for (int n = 0; n < totalNames; n++){
 		// n == current name
 		vector<float> nScores;
 		for (int m = 0; m < totalNames; m++)
@@ -259,7 +259,7 @@ int main(int _nargs, char ** _vargs)
 		}
 
 		allScores.push_back(nScores);
-	}*/
+	}
 
 	// 1 vs. all SVM classification
 	for (int n = 0; n < totalNames; n++){
@@ -357,6 +357,7 @@ int main(int _nargs, char ** _vargs)
 
 	// Write results
 	float accuracy = (tp + tn)/(tp + fp + tn + fn);
+	cout << accuracy << endl;
 	writeResults(Config::getCodebookSize(), Config::useDenseSampling(), accuracy);
 
 	cout << "Finished\n";

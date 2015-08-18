@@ -113,7 +113,7 @@ void calculateRepresentation(const string &_inputFolder, const vector<string> &_
 
 			if (representationType == FREQUENCIES)
 			{
-				cout << "\tCalculating frequencies\n";
+				//cout << "\tCalculating frequencies\n";
 				for (int k = 0; k < currentClassBoW.cols; k++)
 					documentCounter.at<float>(0, k) += (row.at<float>(0, k) > 0 ? 1 : 0);
 			}
@@ -122,7 +122,7 @@ void calculateRepresentation(const string &_inputFolder, const vector<string> &_
 		// Calculate TF-IDF if it is the right bow
 		if (representationType == FREQUENCIES && Config::calculateTFIDF())
 		{
-			cout << "\tCalculating tf-idf\n";
+			//cout << "\tCalculating tf-idf\n";
 
 			// Calculate tf-idf logarithmic factor and then the tf-idf itself
 			for (int k = 0; k < documentCounter.cols; k++)
@@ -137,24 +137,28 @@ void calculateRepresentation(const string &_inputFolder, const vector<string> &_
 	}
 }
 
-void writeResults(const vector<string> &_classNames, const vector<vector<float>> &_scores, vector<int> &_correctGuesses, const int _totalGuesses)
+const char * BoolToString(bool b)
+{
+	return b ? "true" : "false";
+}
+
+void writeResults(int _codebooksize, bool _densesampling, float _accuracy)
 {
 	// Create results folder
-	string cmd = "mkdir -p ../results/";
-	if (system(cmd.c_str()) != 0)
-		cout << "WARNING: can't create results folder\n";
+	//string cmd = "mkdir -p ../results/";
+	//if (system(cmd.c_str()) != 0)
+	//	cout << "WARNING: can't create results folder\n";
 
-	FILE *resultsFile;
+	/*FILE *resultsFile;
 	string outputfilename = "../results/results";
-	resultsFile = fopen(outputfilename.c_str(), "w");
+	resultsFile = fopen(outputfilename.c_str(), "a");*/
 
-	fprintf(resultsFile, "# Name\tRightGuesses\n");
-	fprintf(resultsFile, "# Total Guesses = %d\n", _totalGuesses);
+	std::ofstream outfile;
+	outfile.open("test.txt", std::ios_base::app);
+	outfile << _codebooksize << "\t" << BoolToString(_densesampling) << "\t" << _accuracy << endl;
 
-	int totalSize = _scores.size();
-	for (int k = 0; k < totalSize; k++)
-		fprintf(resultsFile, "%s \t %d \t %.2f\n", _classNames[k].c_str(), _correctGuesses[k], ((float) _correctGuesses[k]) / ((float) _totalGuesses));
-	fclose(resultsFile);
+	//fprintf(resultsFile, "%d \t %s \t %.3f\n", _codebooksize, BoolToString(_densesampling), _accuracy);
+	//fclose(resultsFile);
 }
 
 int main(int _nargs, char ** _vargs)
@@ -192,14 +196,24 @@ int main(int _nargs, char ** _vargs)
 	calculateRepresentation(inputFolder, classNames, "val", codebooks, validationBoWs);
 	calculateRepresentation(inputFolder, classNames, "test", codebooks, testBoWs);
 
-	int totalGuesses = 0;
+	float totalGuesses = 0;
 	int totalNames = trainBoWs.size();
 	vector<vector<float>> allScores;
 	vector<int> rightGuesses = vector<int>(totalNames, 0);
 
+	float tp = 0;
+	float tn = 0;
+	float fp = 0;
+	float fn = 0;
+
+	FILE *resultsFile;
+	string outputfilename = "../results/results";
+	resultsFile = fopen(outputfilename.c_str(), "w");
+	fprintf(resultsFile, "# CodebookSize\tDenseSampling\tAccuracy\n");
+	fclose(resultsFile);
+
 	// 1 vs. 1 SVM Classification
-	for (int n = 0; n < totalNames; n++)
-	{
+	for (int n = 0; n < totalNames; n++){
 		// n == current name
 		vector<float> nScores;
 		for (int m = 0; m < totalNames; m++)
@@ -245,23 +259,30 @@ int main(int _nargs, char ** _vargs)
 				SVM.train(trainnm, labelsMat, Mat(), Mat(), params);
 
 				//This changes for validation/test runs
-				vector<Mat> tempVal;
-				tempVal.push_back(validationBoWs[n]);
-				tempVal.push_back(validationBoWs[m]);
+				vector<Mat> tempTest;
+				tempTest.push_back(testBoWs[n]);
+				tempTest.push_back(testBoWs[m]);
 
-				Mat validationSet;
-				Helper::concatMats(tempVal, validationSet);
+				Mat testSet;
+				Helper::concatMats(tempTest, testSet);
 
-				cout << "Running SVM . . . Comparing " << validationSet.rows << " images." << endl;
+				cout << "Running SVM . . . Comparing " << testSet.rows << " images." << endl;
 
-				for (int k = 0; k < validationSet.rows; k++)
+				for (int k = 0; k < testSet.rows; k++)
 				{
-					float res = SVM.predict(validationSet.row(k));
+					float res = SVM.predict(testSet.row(k));
 					nScores.push_back(res);
-					if (k < validationBoWs[n].rows && res == 1)
-						rightGuesses[n]++;
-					else if (k >= validationBoWs[n].rows && res == -1)
-						rightGuesses[m]++;
+					int limit = testBoWs[n].rows;
+					if (k < limit && res == 1)
+						//rightGuesses[n]++;
+						tp++;
+					else if (k >= limit && res == -1)
+						//rightGuesses[m]++;
+						tn++;
+					else if (k < limit && res == -1)
+						fn++;
+					else if (k >= limit && res == 1)
+						fp++;
 					totalGuesses++;
 				}
 
@@ -276,8 +297,104 @@ int main(int _nargs, char ** _vargs)
 		allScores.push_back(nScores);
 	}
 
+	// 1 vs. all SVM classification
+	for (int n = 0; n < totalNames; n++){
+		// n == current name
+		vector<float> nScores;
+		vector<Mat> tempTrain;
+		tempTrain.push_back(trainBoWs[n]);
+		int totalLabels = trainBoWs[n].rows;
+
+		for (int m = 0; m < totalNames; m++) {
+			if (m != n) {
+				tempTrain.push_back(trainBoWs[m]);
+				totalLabels += trainBoWs[m].rows;
+			}
+		}
+
+		int *trainLabels;
+		trainLabels = (int *) malloc(totalLabels * sizeof(int));
+
+		for (int k = 0; k < trainBoWs[n].rows; k++)
+			trainLabels[k] = 1;
+		for (int k = trainBoWs[n].rows; k < totalLabels; k++)
+			trainLabels[k] = -1;
+
+		Mat trainnm;
+		Helper::concatMats(tempTrain, trainnm);
+
+		Mat labelsMat = Mat(totalLabels, 1, CV_32SC1, trainLabels);
+
+		// Model SVM Parameters
+		CvSVMParams params;
+		params.svm_type = CvSVM::C_SVC;
+		params.kernel_type = CvSVM::LINEAR;
+
+		// Finishing criteria
+		params.term_crit = cvTermCriteria(CV_TERMCRIT_ITER + CV_TERMCRIT_EPS, 1000, 1e-6);
+		params.C = 10000;
+
+		// Model SVM
+		CvSVM SVM;
+		cout << "Training SVM model . . ." << endl;
+
+		// Training!
+		SVM.train(trainnm, labelsMat, Mat(), Mat(), params);
+
+		//This changes for validation/test runs
+		vector<Mat> tempTest;
+		tempTest.push_back(testBoWs[n]);
+		int totalTestLabels = testBoWs[n].rows;
+
+		for (int m = 0; m < totalNames; m++) {
+			if (m != n){
+				tempTest.push_back(testBoWs[m]);
+				totalTestLabels += testBoWs[m].rows;
+			}
+		}
+
+		Mat testSet;
+		Helper::concatMats(tempTest, testSet);
+
+		// Saving real labels of test set to check for true positives, false positives, etc...
+		int *testLabels;
+		testLabels = (int *) malloc(totalTestLabels * sizeof(int));
+
+		for (int k = 0; k < testBoWs[n].rows; k++)
+			testLabels[k] = 1;
+		for (int k = testBoWs[n].rows; k < totalTestLabels; k++)
+			testLabels[k] = -1;
+
+		cout << "Running SVM . . . Comparing " << testSet.rows << " images." << endl;
+
+		for (int k = 0; k < testSet.rows; k++)
+		{
+			float res = SVM.predict(testSet.row(k));
+			nScores.push_back(res);
+			int limit = testBoWs[n].rows;
+			int realLabel = testLabels[k];
+			if (res == 1 && realLabel == 1)
+				//rightGuesses[n]++;
+				tp++;
+			else if (res == -1 && realLabel == -1)
+				//rightGuesses[m]++;
+				tn++;
+			else if (res == -1 && realLabel == 1)
+				fn++;
+			else if (k >= limit && res == 1)
+				fp++;
+			totalGuesses++;
+		}
+
+		free(trainLabels);
+		free(testLabels);
+		cout << "Done." << endl;
+	}
+
 	// Write results
-	writeResults(classNames, allScores, rightGuesses, totalGuesses);
+	float accuracy = (tp + tn)/(tp + fp + tn + fn);
+	cout << accuracy << endl;
+	writeResults(Config::getCodebookSize(), Config::useDenseSampling(), accuracy);
 
 	cout << "Finished\n";
 	return EXIT_SUCCESS;

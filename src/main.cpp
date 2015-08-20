@@ -11,7 +11,6 @@
 #include "Codebook.h"
 #include "Config.h"
 #include "Svm.h"
-#include "EigenFaces.h"
 
 using namespace std;
 using namespace std::chrono;
